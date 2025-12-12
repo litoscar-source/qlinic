@@ -1,0 +1,5 @@
+{
+  "name": "Qlinic - Tecnicos Externos",
+  "description": "Aplicação de gestão de técnicos externos com agenda mensal e cálculo de rotas via AI.",
+  "requestFramePermissions": []
+}
