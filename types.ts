@@ -1,17 +1,18 @@
 
 export enum VehicleType {
-  CARRO_LIGEIRO = 'Carro Ligeiro',
-  CAMIAO_PEQUENO = 'Camião Pequeno',
-  CAMIAO_GRANDE = 'Camião Grande',
-  TOYOTA = 'Toyota',
-  IVECO = 'Iveco'
+  CARRO = 'Carro Ligeiro',
+  CARRINHA = 'Carrinha Comercial',
+  MOTO = 'Moto',
+  CAMIAO = 'Camião'
 }
 
 export enum TicketStatus {
   PRE_AGENDADO = 'Pré-agendado',
-  CONFIRMADO = 'Confirmado',
+  CONFIRMADO = 'Serviço Confirmado',
+  EM_ANDAMENTO = 'Em Andamento',
   RESOLVIDO = 'Resolvido',
-  PARCIALMENTE_RESOLVIDO = 'Parcialmente Resolvido',
+  NAO_RESOLVIDO = 'Não Resolvido',
+  CANCELADO = 'Cancelado',
   NAO_REALIZADO = 'Não Realizado'
 }
 

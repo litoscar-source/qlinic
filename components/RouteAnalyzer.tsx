@@ -1,17 +1,15 @@
 
 import React, { useState } from 'react';
-import { Ticket, RouteAnalysis, Technician, DayStatus } from '../types';
+import { Ticket, RouteAnalysis, Technician } from '../types';
 import { analyzeRoute } from '../services/geminiService';
-import { Map, Loader2, Navigation, AlertCircle, Calculator, Wrench, Car, Moon, Home } from 'lucide-react';
-import { isSameDay } from 'date-fns';
+import { Map, Loader2, Navigation, AlertCircle, Calculator, Wrench, Car } from 'lucide-react';
 
 interface RouteAnalyzerProps {
   dayTickets: Ticket[];
   technicians: Technician[];
-  dayStatuses?: DayStatus[];
 }
 
-export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ dayTickets, technicians, dayStatuses = [] }) => {
+export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ dayTickets, technicians }) => {
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [analyses, setAnalyses] = useState<Record<string, RouteAnalysis>>({});
   const [error, setError] = useState<string | null>(null);
@@ -28,18 +26,11 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ dayTickets, techni
       return;
     }
 
-    // Check if Overnight
-    // We assume all tickets in dayTickets belong to the same day
-    const referenceDate = techTickets[0].date;
-    const isOvernight = dayStatuses.some(ds => 
-        ds.technicianId === tech.id && isSameDay(ds.date, referenceDate) && ds.isOvernight
-    );
-
     setLoadingMap(prev => ({ ...prev, [tech.id]: true }));
     setError(null);
 
     try {
-      const result = await analyzeRoute(techTickets, tech.name, isOvernight);
+      const result = await analyzeRoute(techTickets, tech.name);
       setAnalyses(prev => ({ ...prev, [tech.id]: result }));
     } catch (err: any) {
       setError(err.message || "Erro ao calcular rota.");
@@ -74,14 +65,7 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ dayTickets, techni
         {activeTechnicians.map(tech => {
             const isLoading = loadingMap[tech.id];
             const analysis = analyses[tech.id];
-            const techTickets = dayTickets.filter(t => t.technicianIds.includes(tech.id));
-            const techTicketsCount = techTickets.length;
-            
-            // Check overnight for UI badge
-            const referenceDate = techTickets[0]?.date;
-            const isOvernight = referenceDate ? dayStatuses.some(ds => 
-                ds.technicianId === tech.id && isSameDay(ds.date, referenceDate) && ds.isOvernight
-            ) : false;
+            const techTicketsCount = dayTickets.filter(t => t.technicianIds.includes(tech.id)).length;
 
             return (
                 <div key={tech.id} className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
@@ -92,18 +76,7 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ dayTickets, techni
                                 {tech.name.substring(0, 2).toUpperCase()}
                             </div>
                             <div>
-                                <p className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                                    {tech.name}
-                                    {isOvernight ? (
-                                        <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded flex items-center gap-1 border border-indigo-200">
-                                            <Moon size={10} /> Noite Fora
-                                        </span>
-                                    ) : (
-                                         <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded flex items-center gap-1 border border-gray-200">
-                                            <Home size={10} /> Regressa Base
-                                        </span>
-                                    )}
-                                </p>
+                                <p className="text-sm font-bold text-gray-800">{tech.name}</p>
                                 <p className="text-xs text-gray-500">{techTicketsCount} paragens</p>
                             </div>
                         </div>
@@ -149,7 +122,6 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ dayTickets, techni
                                             <span className="text-gray-500 w-2/3 truncate pr-2">De: {seg.from}</span>
                                             <span className="font-bold text-green-600">{seg.travelTime}</span>
                                         </div>
-                                        <div className="ml-0.5 mt-1 text-gray-400 italic">Para: {seg.to}</div>
                                     </div>
                                 ))}
                             </div>
