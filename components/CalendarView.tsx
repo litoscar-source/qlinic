@@ -39,13 +39,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const emptyDays = Array.from({ length: startDay === 0 ? 6 : startDay - 1 }); // Adjust for Monday start
 
   const getDayTickets = (date: Date) => {
-    return tickets.filter(t => isSameDay(t.date, date) && (!selectedTechId || t.technicianIds.includes(selectedTechId)));
+    return tickets.filter(t => isSameDay(t.date, date) && (!selectedTechId || t.technicianId === selectedTechId));
   };
 
   const getStatusColor = (status: TicketStatus) => {
     switch (status) {
       case TicketStatus.RESOLVIDO: return 'bg-green-100 text-green-700 border-green-200';
-      case TicketStatus.PRE_AGENDADO: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case TicketStatus.PENDENTE: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       case TicketStatus.EM_ANDAMENTO: return 'bg-blue-100 text-blue-700 border-blue-200';
       case TicketStatus.NAO_RESOLVIDO: return 'bg-red-100 text-red-700 border-red-200';
       default: return 'bg-gray-100 text-gray-600';
@@ -99,7 +99,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
               <div className="space-y-1">
                 {dayTickets.slice(0, 3).map(ticket => {
-                    const tech = technicians.find(t => ticket.technicianIds.includes(t.id));
+                    const tech = technicians.find(t => t.id === ticket.technicianId);
                     return (
                         <div 
                             key={ticket.id} 

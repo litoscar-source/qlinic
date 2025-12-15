@@ -7,40 +7,34 @@ const ai = new GoogleGenAI({ apiKey });
 
 export const analyzeRoute = async (tickets: Ticket[], technicianName: string): Promise<RouteAnalysis> => {
   if (tickets.length < 2) {
-    throw new Error("São necessários pelo menos 2 serviços para calcular uma rota.");
+    throw new Error("São necessários pelo menos 2 tickets para calcular uma rota.");
   }
 
   // Sort tickets by time
   const sortedTickets = [...tickets].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
 
-  // Calculate known service duration (reparação)
-  const totalServiceHours = sortedTickets.reduce((acc, t) => acc + t.duration, 0);
-
   const stops = sortedTickets.map((t, index) => 
-    `${index + 1}. [Hora: ${t.scheduledTime}] Cliente: ${t.customerName} - Morada: ${t.address}`
+    `${index + 1}. [${t.scheduledTime} - ${t.duration}h] ${t.customerName} - ${t.address}`
   ).join("\n");
 
   const prompt = `
-    Atue como um gestor de frota e logística. 
-    Técnico: ${technicianName}.
+    Atue como um gestor de logística e tráfego. Eu tenho uma lista de paragens agendadas para: ${technicianName}.
     
-    Lista de paragens sequenciais:
+    Lista de Paragens:
     ${stops}
 
-    TAREFA:
-    1. Calcule o tempo de viagem (condução) e a distância entre cada paragem usando o Google Maps.
-    2. O tempo de reparação/serviço já é conhecido (${totalServiceHours} horas no total), NÃO o inclua nos cálculos de "travelTime" dos segmentos, apenas foque no deslocamento.
+    Por favor, calcule/estime o tempo de deslocação e a distância entre cada paragem consecutiva (1->2, 2->3, etc.) usando o Google Maps para verificar as localizações.
+    Considere também a duração de cada serviço para ver se o horário é exequível, mas o foco principal é o tempo de viagem entre pontos.
     
-    IMPORTANTE: Retorne APENAS um JSON válido.
-    Formato esperado:
+    IMPORTANTE: Retorne APENAS um JSON válido seguindo este esquema. Não inclua Markdown (como \`\`\`json) ou texto adicional.
     {
-      "travelTime": "tempo total APENAS de condução (ex: 1h 15m)",
-      "totalDistance": "distância total acumulada (ex: 45 km)",
+      "totalTime": "tempo total de condução estimado (ex: 1h 30m)",
+      "totalDistance": "distância total estimada (ex: 45 km)",
       "segments": [
         {
-          "from": "Origem",
-          "to": "Destino",
-          "travelTime": "ex: 15 min",
+          "from": "Endereço ou nome de origem",
+          "to": "Endereço ou nome de destino",
+          "estimatedTime": "ex: 15 min",
           "distance": "ex: 5 km"
         }
       ]
@@ -53,23 +47,25 @@ export const analyzeRoute = async (tickets: Ticket[], technicianName: string): P
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
+        // responseMimeType and responseSchema MUST NOT be set when using googleMaps
       },
     });
 
     let jsonText = response.text;
     if (!jsonText) throw new Error("Sem resposta da IA");
 
+    // Clean markdown formatting if present
     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     let data;
     try {
         data = JSON.parse(jsonText);
     } catch (e) {
-        console.error("JSON Parse Error:", jsonText);
-        throw new Error("Erro ao processar resposta da IA.");
+        console.error("Falha ao processar JSON da resposta:", jsonText);
+        throw new Error("Formato de resposta inválido da IA.");
     }
     
-    // Extract grounding URLs
+    // Extract grounding URLs if available
     const groundingUrls: string[] = [];
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
@@ -80,22 +76,13 @@ export const analyzeRoute = async (tickets: Ticket[], technicianName: string): P
         });
     }
 
-    // Calculate total formatted string
-    const serviceTimeStr = `${totalServiceHours}h`;
-    
-    // Helper to sum times loosely (just for display purposes in this demo)
-    // In a real app, use a library like duration-fns
-    const totalTimeDisplay = `${data.travelTime} (Viagem) + ${serviceTimeStr} (Serviço)`;
-
     return {
         ...data,
-        serviceTime: serviceTimeStr,
-        totalTime: totalTimeDisplay,
         groundingUrls
     };
 
   } catch (error) {
-    console.error("Erro na análise de rota:", error);
+    console.error("Erro ao analisar rota:", error);
     throw new Error("Não foi possível calcular a rota. Verifique a API Key.");
   }
 };

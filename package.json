@@ -1,5 +1,5 @@
 {
-  "name": "qlinic---tecnicos-externos",
+  "name": "techdispatch-ai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,8 +13,7 @@
     "@google/genai": "^1.32.0",
     "react-dom": "^19.2.1",
     "date-fns": "^4.1.0",
-    "lucide-react": "^0.559.0",
-    "firebase": "^12.6.0"
+    "lucide-react": "^0.559.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
