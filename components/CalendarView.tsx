@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   format, 
@@ -46,8 +47,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     switch (status) {
       case TicketStatus.RESOLVIDO: return 'bg-green-100 text-green-700 border-green-200';
       case TicketStatus.PRE_AGENDADO: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case TicketStatus.EM_ANDAMENTO: return 'bg-blue-100 text-blue-700 border-blue-200';
-      case TicketStatus.NAO_RESOLVIDO: return 'bg-red-100 text-red-700 border-red-200';
+      case TicketStatus.CONFIRMADO: return 'bg-blue-100 text-blue-700 border-blue-200';
+      case TicketStatus.NAO_REALIZADO: return 'bg-red-100 text-red-700 border-red-200';
+      case TicketStatus.PARCIALMENTE_RESOLVIDO: return 'bg-orange-100 text-orange-700 border-orange-200';
       default: return 'bg-gray-100 text-gray-600';
     }
   };

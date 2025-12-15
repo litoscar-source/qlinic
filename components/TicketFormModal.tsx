@@ -36,7 +36,7 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
     customerName: '',
     address: '',
     locality: '',
-    vehicleType: VehicleType.CARRINHA,
+    vehicleType: VehicleType.CARRO_LIGEIRO, // Updated Default
     serviceId: '',
     status: TicketStatus.PRE_AGENDADO,
     dateString: '', 
@@ -78,7 +78,7 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                 customerName: '',
                 address: '',
                 locality: '',
-                vehicleType: VehicleType.CARRINHA,
+                vehicleType: VehicleType.CARRO_LIGEIRO, // Updated Default
                 serviceId: defaultService ? defaultService.id : '',
                 status: TicketStatus.PRE_AGENDADO,
                 dateString: format(initialDate, 'yyyy-MM-dd'),

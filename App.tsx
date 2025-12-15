@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { WeeklyScheduleView } from './components/WeeklyScheduleView';
 import { TicketFormModal } from './components/TicketFormModal';
 import { RouteAnalyzer } from './components/RouteAnalyzer';
@@ -9,7 +9,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { Technician, Ticket, VehicleType, TicketStatus, ServiceDefinition, User, DayStatus } from './types';
 import { addWeeks, subWeeks, format, isSameDay, startOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, MapPin, Clock, Settings, Truck, Database, Route, FileBarChart, Download, LogOut, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, MapPin, Clock, Settings, Truck, Database, Route, FileBarChart, Download, LogOut, RefreshCw, AlertTriangle, CloudOff } from 'lucide-react';
 import { db } from './firebaseConfig';
 import { 
   collection, 
@@ -34,17 +34,24 @@ const SEED_TECHNICIANS: Omit<Technician, 'id'>[] = [
   { name: 'Rui Ferreira', avatarColor: 'bg-red-500' },
 ];
 
+// Updated Services based on user request
 const SEED_SERVICES: Omit<ServiceDefinition, 'id'>[] = [
+  { name: 'Assistência', defaultDuration: 1, colorClass: 'bg-white border-gray-200' },
   { name: 'Instalação', defaultDuration: 4, colorClass: 'bg-blue-100 text-blue-800 border-blue-200' },
-  { name: 'Reparação', defaultDuration: 2, colorClass: 'bg-purple-100 text-purple-800 border-purple-200' },
-  { name: 'Manutenção', defaultDuration: 1.5, colorClass: 'bg-green-100 text-green-800 border-green-200' },
-  { name: 'Orçamento', defaultDuration: 0.5, colorClass: 'bg-gray-100 text-gray-800 border-gray-200' },
+  { name: 'Calibração', defaultDuration: 1.5, colorClass: 'bg-green-100 text-green-800 border-green-200' },
+  { name: 'Acompanhamento', defaultDuration: 1, colorClass: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { name: 'Verificação', defaultDuration: 1, colorClass: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { name: 'Construção', defaultDuration: 8, colorClass: 'bg-gray-200 text-gray-800 border-gray-300' },
 ];
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  
+  // Ref para evitar que múltiplos erros simultâneos disparem o tratamento de erro várias vezes
+  const offlineLock = useRef(false);
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -64,9 +71,45 @@ function App() {
   // Auto-fill for empty cell click
   const [newTicketPreData, setNewTicketPreData] = useState<{date: Date, techId: string} | null>(null);
 
+  // Helper para formatar erros do Firebase e ativar modo offline
+  const handleFirebaseError = (error: any, context: string) => {
+    // Se já bloqueámos para offline, ignorar erros subsequentes para evitar spam visual ou de consola
+    if (offlineLock.current) return;
+
+    console.warn(`Aviso em ${context}:`, error.message);
+    
+    // Check for both code AND message content to be robust
+    const isPermissionError = error.code === 'permission-denied' || 
+                             (error.message && error.message.includes('Missing or insufficient permissions'));
+
+    if (isPermissionError) {
+        offlineLock.current = true; // Bloqueia imediatamente
+        setIsOffline(true);
+        setDbError("Modo Offline: Base de dados bloqueada. A usar dados locais.");
+        
+        // Populate with Seed Data immediately if empty
+        setTechnicians(prev => prev.length ? prev : SEED_TECHNICIANS.map((t, i) => ({...t, id: `local-tech-${i}`})));
+        setServices(prev => prev.length ? prev : SEED_SERVICES.map((s, i) => ({...s, id: `local-svc-${i}`})));
+        setLoading(false);
+    } else if (error.code === 'unavailable') {
+        setDbError("Sem ligação à internet. Verifique a sua conexão.");
+    } else {
+        setDbError(`Erro ao carregar ${context}: ${error.message}`);
+    }
+  };
+
   // --- FIREBASE SUBSCRIPTIONS ---
   useEffect(() => {
     if (!user) return;
+    
+    // If offline, don't try to subscribe (prevents console spam)
+    if (isOffline) {
+        setLoading(false);
+        return;
+    }
+
+    // Se estamos a tentar conectar, reset ao lock
+    offlineLock.current = false;
     setLoading(true);
 
     try {
@@ -74,13 +117,18 @@ function App() {
       const unsubTech = onSnapshot(collection(db, 'technicians'), (snapshot) => {
         const techs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Technician));
         setTechnicians(techs);
-      }, (error) => setDbError("Erro ao carregar técnicos: " + error.message));
+        // Se conseguimos ler técnicos com sucesso, limpamos erros anteriores de permissão se existirem
+        if (techs.length > 0 && dbError?.includes("Modo Offline")) {
+           setDbError(null);
+           setIsOffline(false);
+        }
+      }, (error) => handleFirebaseError(error, "técnicos"));
 
       // 2. Subscribe Services
       const unsubServices = onSnapshot(collection(db, 'services'), (snapshot) => {
         const svcs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceDefinition));
         setServices(svcs);
-      }, (error) => setDbError("Erro ao carregar serviços: " + error.message));
+      }, (error) => handleFirebaseError(error, "serviços"));
 
       // 3. Subscribe Tickets
       const unsubTickets = onSnapshot(collection(db, 'tickets'), (snapshot) => {
@@ -93,7 +141,7 @@ function App() {
           } as Ticket;
         });
         setTickets(tcks);
-      }, (error) => setDbError("Erro ao carregar tickets: " + error.message));
+      }, (error) => handleFirebaseError(error, "tickets"));
 
       // 4. Subscribe DayStatuses
       const unsubDayStatus = onSnapshot(collection(db, 'day_statuses'), (snapshot) => {
@@ -106,7 +154,7 @@ function App() {
           } as DayStatus;
         });
         setDayStatuses(dss);
-      }, (error) => setDbError("Erro ao carregar status: " + error.message));
+      }, (error) => handleFirebaseError(error, "status"));
 
       setLoading(false);
 
@@ -117,14 +165,22 @@ function App() {
         unsubDayStatus();
       };
     } catch (e: any) {
-        setDbError(e.message);
+        handleFirebaseError(e, "inicialização");
         setLoading(false);
     }
-  }, [user]);
+  }, [user, isOffline]); // Add isOffline dependency to cleanup subscriptions on error
 
   // --- DATABASE ACTIONS ---
 
   const handleSeedDatabase = async () => {
+    if (isOffline) {
+        // Offline Seed
+        setTechnicians(SEED_TECHNICIANS.map((t, i) => ({...t, id: `local-tech-${i}`})));
+        setServices(SEED_SERVICES.map((s, i) => ({...s, id: `local-svc-${i}`})));
+        alert("Dados de exemplo carregados localmente!");
+        return;
+    }
+
     if (!window.confirm("Isto irá adicionar dados de exemplo à base de dados. Continuar?")) return;
     setLoading(true);
     try {
@@ -146,13 +202,30 @@ function App() {
         alert("Base de dados populada com sucesso!");
     } catch (error) {
         console.error("Erro ao popular:", error);
-        alert("Erro ao popular base de dados.");
+        alert("Erro ao popular base de dados. Verifique as permissões.");
     } finally {
         setLoading(false);
     }
   };
 
   const handleSaveTicket = async (ticketData: Omit<Ticket, 'id'>) => {
+    // OFFLINE HANDLING
+    if (isOffline) {
+        const newTicket = { 
+            ...ticketData, 
+            id: editingTicket ? editingTicket.id : `local-ticket-${Date.now()}` 
+        } as Ticket;
+        
+        if (editingTicket) {
+             setTickets(prev => prev.map(t => t.id === newTicket.id ? newTicket : t));
+        } else {
+             setTickets(prev => [...prev, newTicket]);
+        }
+        setEditingTicket(null);
+        setNewTicketPreData(null);
+        return;
+    }
+
     try {
       if (editingTicket) {
         // Update
@@ -166,11 +239,16 @@ function App() {
       setNewTicketPreData(null);
     } catch (error) {
       console.error("Error saving ticket:", error);
-      alert("Erro ao guardar serviço.");
+      alert("Erro ao guardar serviço. Verifique as permissões.");
     }
   };
 
   const handleDeleteTicket = async (ticketId: string) => {
+    if (isOffline) {
+        setTickets(prev => prev.filter(t => t.id !== ticketId));
+        setEditingTicket(null);
+        return;
+    }
     try {
       await deleteDoc(doc(db, 'tickets', ticketId));
       setEditingTicket(null);
@@ -181,6 +259,10 @@ function App() {
   };
 
   const handleUpdateTicket = async (ticketId: string, updates: Partial<Ticket>) => {
+    if (isOffline) {
+        setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, ...updates } : t));
+        return;
+    }
     try {
       await updateDoc(doc(db, 'tickets', ticketId), updates);
     } catch (error) {
@@ -189,6 +271,14 @@ function App() {
   };
   
   const handleMoveTicket = async (ticketId: string, newDate: Date, newTechId: string) => {
+    if (isOffline) {
+        setTickets(prev => prev.map(t => t.id === ticketId ? { 
+            ...t, 
+            date: newDate, 
+            technicianIds: [newTechId] 
+        } : t));
+        return;
+    }
     try {
       await updateDoc(doc(db, 'tickets', ticketId), {
           date: newDate,
@@ -204,6 +294,19 @@ function App() {
     const targetTicket = tickets.find(t => t.id === targetId);
 
     if (sourceTicket && targetTicket) {
+        if (isOffline) {
+            setTickets(prev => prev.map(t => {
+                if (t.id === sourceId) {
+                    return { ...t, date: targetTicket.date, technicianIds: targetTicket.technicianIds, scheduledTime: targetTicket.scheduledTime };
+                }
+                if (t.id === targetId) {
+                    return { ...t, date: sourceTicket.date, technicianIds: sourceTicket.technicianIds, scheduledTime: sourceTicket.scheduledTime };
+                }
+                return t;
+            }));
+            return;
+        }
+
         try {
             const batch = writeBatch(db);
             
@@ -230,10 +333,23 @@ function App() {
 
   const handleToggleOvernight = async (date: Date, techId: string) => {
       // Find if exists in current state (which is synced with DB)
-      // Note: For cleaner implementation we query DB, but state is usually fresh enough
       const existing = dayStatuses.find(ds => 
           isSameDay(ds.date, date) && ds.technicianId === techId
       );
+
+      if (isOffline) {
+           if (existing) {
+               setDayStatuses(prev => prev.filter(ds => ds.id !== existing.id));
+           } else {
+               setDayStatuses(prev => [...prev, {
+                   id: `local-status-${Date.now()}`,
+                   technicianId: techId,
+                   date: startOfDay(date),
+                   isOvernight: true
+               }]);
+           }
+           return;
+      }
 
       try {
           if (existing) {
@@ -250,23 +366,38 @@ function App() {
       }
   };
 
-  // --- SETTINGS HANDLERS (Direct to Firebase) ---
+  // --- SETTINGS HANDLERS ---
   const handleAddTechnician = async (tech: Technician) => {
-      // Remove ID as Firestore generates it, or use it if provided
+      if (isOffline) {
+          setTechnicians(prev => [...prev, { ...tech, id: `local-tech-${Date.now()}` }]);
+          return;
+      }
       const { id, ...data } = tech;
       await addDoc(collection(db, 'technicians'), data);
   };
 
   const handleRemoveTechnician = async (id: string) => {
+      if (isOffline) {
+          setTechnicians(prev => prev.filter(t => t.id !== id));
+          return;
+      }
       await deleteDoc(doc(db, 'technicians', id));
   };
 
   const handleAddService = async (svc: ServiceDefinition) => {
+      if (isOffline) {
+          setServices(prev => [...prev, { ...svc, id: `local-svc-${Date.now()}` }]);
+          return;
+      }
       const { id, ...data } = svc;
       await addDoc(collection(db, 'services'), data);
   };
 
   const handleRemoveService = async (id: string) => {
+      if (isOffline) {
+          setServices(prev => prev.filter(s => s.id !== id));
+          return;
+      }
       await deleteDoc(doc(db, 'services', id));
   };
 
@@ -311,7 +442,7 @@ function App() {
   }
 
   // RENDER LOADING
-  if (loading) {
+  if (loading && !isOffline) {
       return (
           <div className="h-screen w-full flex flex-col items-center justify-center bg-gray-50 text-gray-500 gap-4">
               <Database className="animate-bounce text-blue-500" size={48} />
@@ -325,11 +456,21 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-[#f3f4f6] overflow-hidden">
         
-        {/* Error Banner */}
+        {/* Error/Offline Banner */}
         {dbError && (
-            <div className="bg-red-600 text-white p-2 text-center text-sm font-bold flex items-center justify-center gap-2">
-                <LogOut size={16} />
-                {dbError}. Verifique o ficheiro firebaseConfig.ts.
+            <div className={`text-white p-2 text-center text-sm font-bold flex items-center justify-center gap-2 shadow-lg ${isOffline ? 'bg-orange-500' : 'bg-red-600'}`}>
+                {isOffline ? <CloudOff size={18} /> : <AlertTriangle size={18} />}
+                <span>{dbError}</span>
+                {isOffline && (
+                    <a 
+                        href="https://console.firebase.google.com/" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="underline ml-2 hover:text-orange-100"
+                    >
+                        Abrir Consola
+                    </a>
+                )}
             </div>
         )}
 
@@ -402,6 +543,7 @@ function App() {
                             <button 
                                 onClick={() => setIsSettingsModalOpen(true)}
                                 className="p-2 text-white/80 hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                                title="Configurações"
                             >
                                 <Settings size={18} />
                             </button>
@@ -497,6 +639,7 @@ function App() {
                         <RouteAnalyzer 
                             dayTickets={selectedDayTickets}
                             technicians={technicians}
+                            dayStatuses={dayStatuses}
                         />
                     </div>
                  </div>

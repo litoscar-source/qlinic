@@ -51,12 +51,11 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   // Context Menu State
-  // Type: 'cell' (empty space) or 'ticket' (existing ticket)
   const [contextMenu, setContextMenu] = useState<{ 
     x: number, 
     y: number, 
     type: 'cell' | 'ticket',
-    data: any // TicketId string OR { date: Date, techId: string }
+    data: any 
   } | null>(null);
   
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -77,7 +76,6 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
   const handleCellContextMenu = (e: React.MouseEvent, date: Date, techId: string) => {
     e.preventDefault();
     if (isReadOnly) return;
-    // Ensure we select the date visually when right clicking
     onSelectDate(date);
     setContextMenu({ x: e.clientX, y: e.clientY, type: 'cell', data: { date, techId } });
   };
@@ -103,30 +101,13 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
 
   const getVehicleIcon = (type: VehicleType) => {
     switch (type) {
-      case VehicleType.MOTO: return <Bike size={10} />;
-      case VehicleType.CAMIAO: return <Truck size={10} />;
-      default: return <Car size={10} />;
+      case VehicleType.CAMIAO_PEQUENO:
+      case VehicleType.CAMIAO_GRANDE:
+      case VehicleType.IVECO:
+        return <Truck size={12} />;
+      default: 
+        return <Car size={12} />;
     }
-  };
-
-  const getCardStyle = (status: TicketStatus) => {
-    if (status === TicketStatus.RESOLVIDO) {
-        return 'bg-green-700 text-white border-green-800 shadow-md';
-    }
-    
-    let borderClass = 'border-l-4';
-    let bgClass = 'bg-white';
-    
-    switch (status) {
-      case TicketStatus.CONFIRMADO: borderClass += ' border-blue-500'; break;
-      case TicketStatus.PRE_AGENDADO: borderClass += ' border-gray-400 border-dashed'; bgClass = 'bg-gray-50'; break;
-      case TicketStatus.CANCELADO: borderClass += ' border-red-500'; bgClass = 'bg-red-50 opacity-75'; break;
-      case TicketStatus.NAO_REALIZADO: borderClass += ' border-orange-500'; break;
-      case TicketStatus.NAO_RESOLVIDO: borderClass += ' border-red-600'; break;
-      case TicketStatus.EM_ANDAMENTO: borderClass += ' border-blue-600'; break;
-      default: borderClass += ' border-gray-200';
-    }
-    return `${bgClass} ${borderClass} border-y border-r border-gray-200 text-gray-800`;
   };
 
   const getServiceName = (serviceId: string) => {
@@ -134,13 +115,44 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     return service ? service.name : 'Serviço';
   };
 
-  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>, ticketId: string) => {
-    e.stopPropagation();
-    if (isReadOnly) return;
-    const newDuration = parseFloat(e.target.value);
-    if (!isNaN(newDuration) && newDuration > 0) {
-        onTicketUpdate(ticketId, { duration: newDuration });
+  // ESTILOS DO CARTÃO
+  // Fundo = Baseado no Serviço
+  // Borda Esquerda = Baseado no Estado
+  const getCardStyle = (ticket: Ticket) => {
+    const service = services.find(s => s.id === ticket.serviceId);
+    const serviceName = service?.name.toLowerCase() || '';
+
+    // 1. Determinar Background pelo Serviço
+    let bgClass = 'bg-white';
+    if (serviceName.includes('instalação')) bgClass = 'bg-blue-100';
+    else if (serviceName.includes('calibração')) bgClass = 'bg-green-100';
+    else if (serviceName.includes('acompanhamento') || serviceName.includes('verificação')) bgClass = 'bg-purple-100';
+    else if (serviceName.includes('construção')) bgClass = 'bg-gray-200';
+    else if (serviceName.includes('assistência')) bgClass = 'bg-white';
+    
+    // 2. Determinar Borda pelo Estado
+    let borderClass = 'border-l-4';
+    switch (ticket.status) {
+      case TicketStatus.RESOLVIDO:
+        borderClass += ' border-green-600'; 
+        break;
+      case TicketStatus.CONFIRMADO: 
+        borderClass += ' border-black'; 
+        break;
+      case TicketStatus.PRE_AGENDADO: 
+        borderClass += ' border-gray-400 border-dashed'; 
+        break;
+      case TicketStatus.NAO_REALIZADO: 
+        borderClass += ' border-red-500'; 
+        break;
+      case TicketStatus.PARCIALMENTE_RESOLVIDO: 
+        borderClass += ' border-orange-500'; 
+        break;
+      default: 
+        borderClass += ' border-gray-200';
     }
+
+    return `${bgClass} ${borderClass} border-y border-r border-gray-200`;
   };
 
   const handleDragStart = (e: React.DragEvent, ticketId: string) => {
@@ -155,19 +167,16 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     e.dataTransfer.dropEffect = 'move';
   };
 
-  // Dropping on a Ticket triggers Swap
   const handleDropOnTicket = (e: React.DragEvent, targetTicketId: string) => {
     if (isReadOnly) return;
     e.preventDefault();
-    e.stopPropagation(); // Prevent bubbling to the cell
+    e.stopPropagation();
     const sourceTicketId = e.dataTransfer.getData('ticketId');
-    
     if (sourceTicketId && sourceTicketId !== targetTicketId && onTicketSwap) {
         onTicketSwap(sourceTicketId, targetTicketId);
     }
   };
 
-  // Dropping on the Cell triggers Move
   const handleDropOnCell = (e: React.DragEvent, date: Date, techId: string) => {
     if (isReadOnly) return;
     e.preventDefault();
@@ -177,9 +186,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     }
   };
 
-  // Handle clicking on empty space (Left Click just selects date now)
   const handleCellClick = (e: React.MouseEvent, date: Date) => {
-    // Only trigger if clicking directly on the cell div, not bubbles
     if (e.target === e.currentTarget) {
          onSelectDate(date);
     }
@@ -250,7 +257,6 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                     t.technicianIds.includes(tech.id)
                                 ).sort((a,b) => a.scheduledTime.localeCompare(b.scheduledTime));
 
-                                // Check Overnight Status
                                 const isOvernight = dayStatuses.some(ds => 
                                     isSameDay(ds.date, day) && 
                                     ds.technicianId === tech.id && 
@@ -275,12 +281,15 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                                 const isResolved = ticket.status === TicketStatus.RESOLVIDO;
                                                 const hasFault = !!ticket.faultDescription;
                                                 
+                                                // Cor do texto mais escura para contraste em fundos coloridos
+                                                const textColorClass = isResolved ? 'text-green-800' : 'text-gray-800';
+                                                
                                                 return (
                                                     <div 
                                                         key={ticket.id}
                                                         draggable={!isReadOnly}
                                                         onDragStart={(e) => handleDragStart(e, ticket.id)}
-                                                        onDrop={(e) => handleDropOnTicket(e, ticket.id)} // SWAP Target
+                                                        onDrop={(e) => handleDropOnTicket(e, ticket.id)}
                                                         onDragOver={handleDragOver}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -288,84 +297,69 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                                         }}
                                                         onContextMenu={(e) => handleTicketContextMenu(e, ticket.id)}
                                                         className={`
-                                                            rounded-md p-2 shadow-sm transition-all text-xs relative overflow-hidden group 
+                                                            rounded-md p-2 shadow-sm transition-all text-sm relative overflow-hidden group 
                                                             ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-[1.02] hover:z-10 hover:shadow-md'}
-                                                            ${getCardStyle(ticket.status)}
+                                                            ${getCardStyle(ticket)}
                                                         `}
                                                     >
                                                         {isResolved && (
                                                             <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none select-none">
-                                                                <span className="text-2xl font-black uppercase transform -rotate-12 tracking-widest">RESOLVIDO</span>
+                                                                <span className="text-2xl font-black uppercase transform -rotate-12 tracking-widest text-green-900">RESOLVIDO</span>
                                                             </div>
                                                         )}
 
-                                                        {/* Header: Time + Tickets (Ticket & Process) */}
-                                                        <div className={`flex justify-between items-center mb-1 pb-1 border-b ${isResolved ? 'border-green-600' : 'border-gray-100'}`}>
-                                                            <div className={`flex items-center gap-1 font-bold ${isResolved ? 'text-green-100' : 'text-gray-700'}`}>
-                                                                <Clock size={10} />
+                                                        {/* Header: Time + Tickets */}
+                                                        <div className={`flex justify-between items-center mb-1 pb-1 border-b ${isResolved ? 'border-green-300' : 'border-black/10'}`}>
+                                                            <div className={`flex items-center gap-1 font-bold ${textColorClass} text-sm`}>
+                                                                <Clock size={12} />
                                                                 {ticket.scheduledTime}
                                                             </div>
-                                                            <div className={`font-bold flex items-center gap-1 ${isResolved ? 'text-white' : 'text-blue-700'}`}>
+                                                            <div className={`font-bold flex items-center gap-1 ${isResolved ? 'text-green-800' : 'text-blue-700'} text-xs`}>
                                                                 <span>{ticket.ticketNumber}</span>
                                                                 {ticket.processNumber && (
-                                                                    <span className={`text-[10px] font-normal opacity-90 ${isResolved ? 'text-blue-100' : 'text-gray-500'}`}>
+                                                                    <span className={`text-[10px] font-normal opacity-90 ${isResolved ? 'text-green-700' : 'text-gray-500'}`}>
                                                                         / {ticket.processNumber}
                                                                     </span>
                                                                 )}
                                                             </div>
                                                         </div>
 
-                                                        {/* Client Name & Fault Indicator */}
+                                                        {/* Client Name */}
                                                         <div className="flex justify-between items-start">
-                                                            <div className={`font-bold text-sm mb-0.5 truncate ${isResolved ? 'text-white' : 'text-gray-900'}`} title={ticket.customerName}>
+                                                            <div className={`font-bold text-sm leading-tight mb-0.5 truncate ${textColorClass}`} title={ticket.customerName}>
                                                                 {ticket.customerName}
                                                             </div>
                                                             {hasFault && (
                                                                 <div title="Avaria Reportada">
-                                                                    <AlertTriangle size={12} className="text-red-500 animate-pulse" />
+                                                                    <AlertTriangle size={14} className="text-red-500 animate-pulse" />
                                                                 </div>
                                                             )}
                                                         </div>
 
                                                         {/* Locality */}
-                                                        <div className={`flex items-center gap-1 mb-1 font-semibold uppercase ${isResolved ? 'text-green-100' : 'text-gray-500'}`}>
-                                                            <MapPin size={10} className="shrink-0" />
+                                                        <div className={`flex items-center gap-1 mb-1 font-semibold uppercase text-xs ${isResolved ? 'text-green-700' : 'text-gray-600'}`}>
+                                                            <MapPin size={12} className="shrink-0" />
                                                             <span className="truncate">{ticket.locality || 'N/A'}</span>
                                                         </div>
 
                                                         {/* Footer Info: Service & Vehicle */}
                                                         <div className="flex justify-between items-center mt-1.5">
-                                                            <div className="flex flex-col gap-0.5 max-w-[70%]">
-                                                                <span className={`text-[10px] font-bold truncate ${isResolved ? 'text-green-100' : 'text-gray-600'}`}>
+                                                            <div className="flex flex-col gap-0.5 w-full">
+                                                                <span className={`text-xs font-bold truncate ${isResolved ? 'text-green-700' : 'text-gray-500'}`}>
                                                                     {getServiceName(ticket.serviceId)}
                                                                 </span>
-                                                                <div className={`flex items-center gap-1 text-[10px] font-bold ${isResolved ? 'text-green-200' : 'text-gray-500'}`}>
-                                                                    {getVehicleIcon(ticket.vehicleType)}
-                                                                    {ticket.vehicleType}
+                                                                <div className="flex justify-between items-center w-full">
+                                                                    <div className={`flex items-center gap-1 text-xs font-bold ${isResolved ? 'text-green-700' : 'text-gray-500'}`}>
+                                                                        {getVehicleIcon(ticket.vehicleType)}
+                                                                        {ticket.vehicleType}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                            
-                                                            {/* Duration Editor */}
-                                                            <div 
-                                                                className={`flex items-center gap-0.5 rounded px-1 py-0.5 ${isResolved ? 'bg-green-800/50' : 'bg-gray-100 border border-gray-200'}`} 
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <input 
-                                                                    type="number" 
-                                                                    min="0.5" 
-                                                                    step="0.5"
-                                                                    disabled={isReadOnly}
-                                                                    value={ticket.duration}
-                                                                    onChange={(e) => handleDurationChange(e, ticket.id)}
-                                                                    className={`w-6 text-center bg-transparent text-[10px] font-bold outline-none ${isResolved ? 'text-white' : 'text-gray-700'}`}
-                                                                />
-                                                                <span className={`text-[8px] ${isResolved ? 'text-green-300' : 'text-gray-400'}`}>h</span>
                                                             </div>
                                                         </div>
 
                                                         {!isResolved && !isReadOnly && (
                                                             <div className="absolute top-0.5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-50 cursor-grab active:cursor-grabbing">
-                                                                <GripHorizontal size={12} className="text-gray-400" />
+                                                                <GripHorizontal size={14} className="text-gray-400" />
                                                             </div>
                                                         )}
                                                     </div>
@@ -373,7 +367,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                             })}
                                         </div>
 
-                                        {/* Overnight Indicator (Bottom of Cell) */}
+                                        {/* Overnight Indicator */}
                                         {isOvernight && (
                                             <div className="mt-2 bg-indigo-600 text-white text-[10px] font-bold py-1 px-2 rounded-md flex items-center justify-center gap-1 shadow-sm mx-1 mb-1">
                                                 <Moon size={10} />
