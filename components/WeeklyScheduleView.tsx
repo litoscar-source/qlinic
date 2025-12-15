@@ -11,7 +11,7 @@ import {
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Ticket, TicketStatus, Technician, ServiceDefinition, VehicleType, DayStatus } from '../types';
-import { MapPin, Clock, GripHorizontal, Car, Truck, Bike, AlertTriangle, Moon, Plus } from 'lucide-react';
+import { MapPin, Clock, GripHorizontal, Car, Truck, AlertTriangle, Moon, Plus } from 'lucide-react';
 
 interface WeeklyScheduleViewProps {
   currentDate: Date;
