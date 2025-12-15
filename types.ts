@@ -3,14 +3,21 @@ export enum VehicleType {
   CARRO = 'Carro Ligeiro',
   CARRINHA = 'Carrinha Comercial',
   MOTO = 'Moto',
-  CAMIAO = 'Camião'
+  CAMIAO = 'Camião',
+  CAMIAO_PEQUENO = 'Camião Pequeno',
+  CAMIAO_GRANDE = 'Camião Grande',
+  IVECO = 'Iveco'
 }
 
 export enum TicketStatus {
   PENDENTE = 'Pendente',
   EM_ANDAMENTO = 'Em Andamento',
   RESOLVIDO = 'Resolvido',
-  NAO_RESOLVIDO = 'Não Resolvido'
+  NAO_RESOLVIDO = 'Não Resolvido',
+  CONFIRMADO = 'Confirmado',
+  PRE_AGENDADO = 'Pré-Agendado',
+  NAO_REALIZADO = 'Não Realizado',
+  PARCIALMENTE_RESOLVIDO = 'Parcialmente Resolvido'
 }
 
 export interface ServiceDefinition {
@@ -39,6 +46,9 @@ export interface Ticket {
   scheduledTime: string; // HH:mm
   duration: number; // Duração em horas
   notes?: string;
+  locality?: string;
+  processNumber?: string;
+  faultDescription?: string;
 }
 
 export interface RouteAnalysis {
@@ -51,4 +61,18 @@ export interface RouteAnalysis {
     distance: string;
   }[];
   groundingUrls: string[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'technician' | 'viewer';
+}
+
+export interface DayStatus {
+  id: string;
+  technicianId: string;
+  date: Date;
+  isOvernight: boolean;
 }

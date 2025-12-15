@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   format, 
@@ -39,7 +40,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const emptyDays = Array.from({ length: startDay === 0 ? 6 : startDay - 1 }); // Adjust for Monday start
 
   const getDayTickets = (date: Date) => {
-    return tickets.filter(t => isSameDay(t.date, date) && (!selectedTechId || t.technicianId === selectedTechId));
+    return tickets.filter(t => isSameDay(t.date, date) && (!selectedTechId || t.technicianIds.includes(selectedTechId)));
   };
 
   const getStatusColor = (status: TicketStatus) => {
@@ -99,7 +100,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
               <div className="space-y-1">
                 {dayTickets.slice(0, 3).map(ticket => {
-                    const tech = technicians.find(t => t.id === ticket.technicianId);
+                    const tech = technicians.find(t => ticket.technicianIds.includes(t.id));
                     return (
                         <div 
                             key={ticket.id} 

@@ -1,28 +1,54 @@
+
 import React, { useState } from 'react';
-import { Ticket, RouteAnalysis } from '../types';
+import { Ticket, RouteAnalysis, Technician, DayStatus } from '../types';
 import { analyzeRoute } from '../services/geminiService';
 import { Map, Loader2, Navigation, AlertCircle } from 'lucide-react';
 
 interface RouteAnalyzerProps {
   tickets: Ticket[];
-  technicianName: string;
+  technicians?: Technician[];
+  dayStatuses?: DayStatus[];
+  technicianName?: string;
 }
 
-export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ tickets, technicianName }) => {
+export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ 
+    tickets, 
+    technicians, 
+    dayStatuses,
+    technicianName: propTechnicianName 
+}) => {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<RouteAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const getTechnicianName = () => {
+      if (propTechnicianName) return propTechnicianName;
+      if (!technicians || tickets.length === 0) return 'Técnico';
+      
+      // Try to find the most frequent tech in tickets
+      const techCounts: Record<string, number> = {};
+      tickets.forEach(t => {
+          t.technicianIds.forEach(id => {
+              techCounts[id] = (techCounts[id] || 0) + 1;
+          });
+      });
+      
+      const primaryTechId = Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b, Object.keys(techCounts)[0]);
+      const tech = technicians.find(t => t.id === primaryTechId);
+      return tech ? tech.name : 'Técnico';
+  };
+
   const handleAnalyze = async () => {
     if (tickets.length < 2) {
-      setError("Adicione pelo menos 2 tickets para calcular a rota.");
+      setError("Adicione pelo menos 2 serviços para calcular a rota.");
       return;
     }
     
     setLoading(true);
     setError(null);
     try {
-      const result = await analyzeRoute(tickets, technicianName);
+      const name = getTechnicianName();
+      const result = await analyzeRoute(tickets, name);
       setAnalysis(result);
     } catch (err) {
       setError("Falha ao analisar rota. Verifique a chave API ou tente novamente.");
@@ -32,11 +58,11 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ tickets, technicia
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6 h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-gray-800 flex items-center gap-2">
           <Map className="text-indigo-600" size={20} />
-          Análise de Rota Inteligente
+          Análise de Rota ({getTechnicianName()})
         </h3>
         {!analysis && (
           <button
@@ -57,7 +83,7 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ tickets, technicia
         </div>
       )}
 
-      {analysis && (
+      {analysis ? (
         <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex gap-4 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
             <div>
@@ -124,6 +150,11 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ tickets, technicia
             </button>
           </div>
         </div>
+      ) : (
+          <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg bg-gray-50/50">
+             <Map size={32} className="mb-2 opacity-50" />
+             <p>Selecione serviços para calcular a rota</p>
+          </div>
       )}
     </div>
   );
