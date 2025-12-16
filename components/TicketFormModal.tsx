@@ -286,7 +286,7 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                     type="text"
                     required
                     disabled={isReadOnly}
-                    placeholder="Rua, Cidade..."
+                    placeholder="Rua e Código Postal (Importante para rotas)"
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"

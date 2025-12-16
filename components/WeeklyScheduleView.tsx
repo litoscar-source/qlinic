@@ -12,7 +12,7 @@ import {
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Ticket, TicketStatus, Technician, ServiceDefinition, VehicleType, DayStatus } from '../types';
-import { MapPin, Clock, GripHorizontal, Car, Truck, AlertTriangle, Moon, Plus, ArrowLeft } from 'lucide-react';
+import { MapPin, Clock, GripHorizontal, Car, Truck, AlertTriangle, Moon, Plus, ArrowLeft, Users } from 'lucide-react';
 
 interface WeeklyScheduleViewProps {
   currentDate: Date;
@@ -127,41 +127,25 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     return service ? service.name : 'Serviço';
   };
 
-  // ESTILOS DO CARTÃO
-  // Fundo = Baseado no Serviço
-  // Borda Esquerda = Baseado no Estado
   const getCardStyle = (ticket: Ticket) => {
     const service = services.find(s => s.id === ticket.serviceId);
     const serviceName = service?.name.toLowerCase() || '';
 
-    // 1. Determinar Background pelo Serviço
     let bgClass = 'bg-white';
-    if (serviceName.includes('instalação')) bgClass = 'bg-blue-100';
-    else if (serviceName.includes('calibração')) bgClass = 'bg-green-100';
-    else if (serviceName.includes('acompanhamento') || serviceName.includes('verificação')) bgClass = 'bg-purple-100';
-    else if (serviceName.includes('construção')) bgClass = 'bg-gray-200';
+    if (serviceName.includes('instalação')) bgClass = 'bg-blue-50';
+    else if (serviceName.includes('calibração')) bgClass = 'bg-green-50';
+    else if (serviceName.includes('acompanhamento') || serviceName.includes('verificação')) bgClass = 'bg-purple-50';
+    else if (serviceName.includes('construção')) bgClass = 'bg-gray-100';
     else if (serviceName.includes('assistência')) bgClass = 'bg-white';
     
-    // 2. Determinar Borda pelo Estado
     let borderClass = 'border-l-4';
     switch (ticket.status) {
-      case TicketStatus.RESOLVIDO:
-        borderClass += ' border-green-600'; 
-        break;
-      case TicketStatus.CONFIRMADO: 
-        borderClass += ' border-black'; 
-        break;
-      case TicketStatus.PRE_AGENDADO: 
-        borderClass += ' border-gray-400 border-dashed'; 
-        break;
-      case TicketStatus.NAO_REALIZADO: 
-        borderClass += ' border-red-500'; 
-        break;
-      case TicketStatus.PARCIALMENTE_RESOLVIDO: 
-        borderClass += ' border-orange-500'; 
-        break;
-      default: 
-        borderClass += ' border-gray-200';
+      case TicketStatus.RESOLVIDO: borderClass += ' border-green-600'; break;
+      case TicketStatus.CONFIRMADO: borderClass += ' border-black'; break;
+      case TicketStatus.PRE_AGENDADO: borderClass += ' border-gray-400 border-dashed'; break;
+      case TicketStatus.NAO_REALIZADO: borderClass += ' border-red-500'; break;
+      case TicketStatus.PARCIALMENTE_RESOLVIDO: borderClass += ' border-orange-500'; break;
+      default: borderClass += ' border-gray-300';
     }
 
     return `${bgClass} ${borderClass} border-y border-r border-gray-200`;
@@ -204,33 +188,29 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     }
   };
 
-  const gridTemplateColumns = `120px repeat(${technicians.length}, minmax(240px, 1fr))`;
+  // Fixed column width for technicians, flexible for days
+  const gridTemplateColumns = `220px repeat(7, minmax(160px, 1fr))`;
 
   return (
     <>
     <div className="bg-white rounded-t-2xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden select-none">
       <div className="overflow-auto h-full relative custom-scrollbar">
-        <div style={{ minWidth: `${120 + technicians.length * 240}px` }}>
-            {/* Header: Technicians */}
+        <div style={{ minWidth: '1340px' }}> {/* Force width to prevent squashing on small screens */}
+            
+            {/* Header: Days of Week */}
             <div 
                 className="grid border-b border-gray-200 bg-gray-50 sticky top-0 z-20 shadow-sm"
                 style={{ gridTemplateColumns }}
             >
-                <div className="p-3 font-bold text-gray-500 text-xs uppercase tracking-wider flex items-center justify-center border-r border-gray-200 bg-gray-100 z-30 sticky left-0">
-                    Data
-                </div>
-                {technicians.map(tech => (
-                    <div key={tech.id} className="p-2 flex items-center gap-2 border-r border-gray-200 last:border-r-0 bg-gray-50 justify-center">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm ${tech.avatarColor}`}>
-                            {tech.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <span className="font-bold text-gray-700 text-sm truncate">{tech.name}</span>
+                {/* Top Left Corner */}
+                <div className="p-3 font-bold text-gray-500 text-xs uppercase tracking-wider flex items-center justify-center border-r border-gray-200 bg-white z-30 sticky left-0 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                    <div className="flex items-center gap-2">
+                         <Users size={16} />
+                         Equipa
                     </div>
-                ))}
-            </div>
+                </div>
 
-            {/* Rows: Days */}
-            <div className="divide-y divide-gray-200">
+                {/* Days Columns */}
                 {daysInWeek.map(day => {
                     const isSelected = isSameDay(day, selectedDate);
                     const isWknd = isWeekend(day);
@@ -238,160 +218,140 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
 
                     return (
                         <div 
-                            key={day.toISOString()} 
-                            className={`grid transition-colors group/row ${isWknd ? 'bg-gray-200' : 'bg-white hover:bg-gray-50'}`}
-                            style={{ gridTemplateColumns }}
+                            key={day.toISOString()}
+                            onClick={() => onSelectDate(day)}
+                            className={`
+                                p-2 border-r border-gray-200 last:border-r-0 flex flex-col items-center justify-center cursor-pointer transition-colors
+                                ${isWknd ? 'bg-gray-100/50' : 'bg-gray-50'}
+                                ${isSelected ? 'bg-blue-50/80 ring-inset ring-2 ring-blue-500' : 'hover:bg-gray-100'}
+                                ${isCurrent ? 'bg-blue-50' : ''}
+                            `}
                         >
-                            {/* Day Column (Sticky Left) */}
-                            <div 
-                                onClick={() => onSelectDate(day)}
-                                className={`
-                                    sticky left-0 z-10 p-2 border-r border-gray-300 flex flex-col justify-center items-center cursor-pointer
-                                    ${isWknd ? 'bg-gray-200' : 'bg-white group-hover/row:bg-gray-50'}
-                                    ${isSelected ? '!bg-blue-100 border-r-blue-300' : ''}
-                                `}
-                            >
-                                <span className="text-[10px] font-bold uppercase text-gray-500">
-                                    {format(day, 'EEE', { locale: pt })}
-                                </span>
-                                <div className={`text-xl font-bold leading-none my-1 ${isCurrent ? 'text-blue-600' : 'text-gray-800'}`}>
-                                    {format(day, 'dd')}
-                                </div>
-                                <span className="text-[10px] text-gray-400">
-                                    {format(day, 'MMM', { locale: pt })}
-                                </span>
+                            <span className="text-[10px] font-bold uppercase text-gray-500">
+                                {format(day, 'EEE', { locale: pt })}
+                            </span>
+                            <div className={`text-xl font-bold leading-none my-1 ${isCurrent ? 'text-blue-600' : 'text-gray-800'}`}>
+                                {format(day, 'dd')}
                             </div>
-
-                            {/* Technician Columns (Cells) */}
-                            {technicians.map(tech => {
-                                const dayTechTickets = tickets.filter(t => 
-                                    isSameDay(t.date, day) && 
-                                    t.technicianIds.includes(tech.id)
-                                ).sort((a,b) => a.scheduledTime.localeCompare(b.scheduledTime));
-
-                                const isOvernight = dayStatuses.some(ds => 
-                                    isSameDay(ds.date, day) && 
-                                    ds.technicianId === tech.id && 
-                                    ds.isOvernight
-                                );
-
-                                return (
-                                    <div 
-                                        key={`${day}-${tech.id}`} 
-                                        className={`
-                                            p-1.5 border-r border-gray-200 last:border-r-0 relative transition-colors flex flex-col
-                                            ${isWknd ? 'min-h-[100px]' : 'min-h-[160px]'} 
-                                            ${isSelected ? 'bg-blue-50/30' : ''}
-                                        `}
-                                        onClick={(e) => handleCellClick(e, day)}
-                                        onContextMenu={(e) => handleCellContextMenu(e, day, tech.id)}
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) => handleDropOnCell(e, day, tech.id)}
-                                    >
-                                        <div className="flex-1 space-y-2">
-                                            {dayTechTickets.map(ticket => {
-                                                const isResolved = ticket.status === TicketStatus.RESOLVIDO;
-                                                const hasFault = !!ticket.faultDescription;
-                                                
-                                                // Cor do texto mais escura para contraste em fundos coloridos
-                                                const textColorClass = isResolved ? 'text-green-800' : 'text-gray-800';
-                                                
-                                                return (
-                                                    <div 
-                                                        key={ticket.id}
-                                                        draggable={!isReadOnly}
-                                                        onDragStart={(e) => handleDragStart(e, ticket.id)}
-                                                        onDrop={(e) => handleDropOnTicket(e, ticket.id)}
-                                                        onDragOver={handleDragOver}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onEditTicket(ticket);
-                                                        }}
-                                                        onContextMenu={(e) => handleTicketContextMenu(e, ticket.id)}
-                                                        className={`
-                                                            rounded-md p-2 shadow-sm transition-all text-sm relative overflow-hidden group 
-                                                            ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-[1.02] hover:z-10 hover:shadow-md'}
-                                                            ${getCardStyle(ticket)}
-                                                        `}
-                                                    >
-                                                        {isResolved && (
-                                                            <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none select-none">
-                                                                <span className="text-2xl font-black uppercase transform -rotate-12 tracking-widest text-green-900">RESOLVIDO</span>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Header: Time + Tickets */}
-                                                        <div className={`flex justify-between items-center mb-1 pb-1 border-b ${isResolved ? 'border-green-300' : 'border-black/10'}`}>
-                                                            <div className={`flex items-center gap-1 font-bold ${textColorClass} text-sm`}>
-                                                                <Clock size={12} />
-                                                                {ticket.scheduledTime}
-                                                            </div>
-                                                            <div className={`font-bold flex items-center gap-1 ${isResolved ? 'text-green-800' : 'text-blue-700'} text-xs`}>
-                                                                <span>{ticket.ticketNumber}</span>
-                                                                {ticket.processNumber && (
-                                                                    <span className={`text-[10px] font-normal opacity-90 ${isResolved ? 'text-green-700' : 'text-gray-500'}`}>
-                                                                        / {ticket.processNumber}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Client Name */}
-                                                        <div className="flex justify-between items-start">
-                                                            <div className={`font-bold text-sm leading-tight mb-0.5 truncate ${textColorClass}`} title={ticket.customerName}>
-                                                                {ticket.customerName}
-                                                            </div>
-                                                            {hasFault && (
-                                                                <div title="Avaria Reportada">
-                                                                    <AlertTriangle size={14} className="text-red-500 animate-pulse" />
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Locality */}
-                                                        <div className={`flex items-center gap-1 mb-1 font-semibold uppercase text-xs ${isResolved ? 'text-green-700' : 'text-gray-600'}`}>
-                                                            <MapPin size={12} className="shrink-0" />
-                                                            <span className="truncate">{ticket.locality || 'N/A'}</span>
-                                                        </div>
-
-                                                        {/* Footer Info: Service & Vehicle */}
-                                                        <div className="flex justify-between items-center mt-1.5">
-                                                            <div className="flex flex-col gap-0.5 w-full">
-                                                                <span className={`text-xs font-bold truncate ${isResolved ? 'text-green-700' : 'text-gray-500'}`}>
-                                                                    {getServiceName(ticket.serviceId)}
-                                                                </span>
-                                                                <div className="flex justify-between items-center w-full">
-                                                                    <div className={`flex items-center gap-1 text-xs font-bold ${isResolved ? 'text-green-700' : 'text-gray-500'}`}>
-                                                                        {getVehicleIcon(ticket.vehicleType)}
-                                                                        {ticket.vehicleType}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        {!isResolved && !isReadOnly && (
-                                                            <div className="absolute top-0.5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-50 cursor-grab active:cursor-grabbing">
-                                                                <GripHorizontal size={14} className="text-gray-400" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Overnight Indicator */}
-                                        {isOvernight && (
-                                            <div className="mt-2 bg-indigo-600 text-white text-[10px] font-bold py-1 px-2 rounded-md flex items-center justify-center gap-1 shadow-sm mx-1 mb-1">
-                                                <Moon size={10} />
-                                                NOITE FORA
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
                         </div>
                     );
                 })}
+            </div>
+
+            {/* Body: Technicians Rows */}
+            <div className="divide-y divide-gray-200">
+                {technicians.map(tech => (
+                    <div 
+                        key={tech.id} 
+                        className="grid group/row hover:bg-gray-50/30 transition-colors"
+                        style={{ gridTemplateColumns }}
+                    >
+                        {/* Technician Name (Sticky Left) */}
+                        <div className="sticky left-0 z-10 bg-white p-3 border-r border-gray-200 flex items-center gap-3 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] group-hover/row:bg-gray-50/50 transition-colors">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm ${tech.avatarColor} shrink-0`}>
+                                {tech.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <span className="font-bold text-gray-700 text-sm truncate">{tech.name}</span>
+                        </div>
+
+                        {/* Days Cells */}
+                        {daysInWeek.map(day => {
+                             const dayTechTickets = tickets.filter(t => 
+                                isSameDay(t.date, day) && 
+                                t.technicianIds.includes(tech.id)
+                            ).sort((a,b) => a.scheduledTime.localeCompare(b.scheduledTime));
+
+                            const isOvernight = dayStatuses.some(ds => 
+                                isSameDay(ds.date, day) && 
+                                ds.technicianId === tech.id && 
+                                ds.isOvernight
+                            );
+                            
+                            const isWknd = isWeekend(day);
+                            const isSelected = isSameDay(day, selectedDate);
+
+                            return (
+                                <div
+                                    key={`${day.toISOString()}-${tech.id}`}
+                                    className={`
+                                        p-1.5 border-r border-gray-200 last:border-r-0 min-h-[140px] flex flex-col
+                                        ${isWknd ? 'bg-gray-100/30' : ''}
+                                        ${isSelected ? 'bg-blue-50/20' : ''}
+                                    `}
+                                    onClick={(e) => handleCellClick(e, day)}
+                                    onContextMenu={(e) => handleCellContextMenu(e, day, tech.id)}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDropOnCell(e, day, tech.id)}
+                                >
+                                    <div className="flex-1 space-y-2">
+                                        {dayTechTickets.map(ticket => {
+                                            const isResolved = ticket.status === TicketStatus.RESOLVIDO;
+                                            const hasFault = !!ticket.faultDescription;
+                                            const textColorClass = isResolved ? 'text-green-800' : 'text-gray-800';
+                                            
+                                            return (
+                                                <div 
+                                                    key={ticket.id}
+                                                    draggable={!isReadOnly}
+                                                    onDragStart={(e) => handleDragStart(e, ticket.id)}
+                                                    onDrop={(e) => handleDropOnTicket(e, ticket.id)}
+                                                    onDragOver={handleDragOver}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onEditTicket(ticket);
+                                                    }}
+                                                    onContextMenu={(e) => handleTicketContextMenu(e, ticket.id)}
+                                                    className={`
+                                                        rounded p-1.5 shadow-sm transition-all text-xs relative overflow-hidden group 
+                                                        ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-[1.02] hover:z-10 hover:shadow-md'}
+                                                        ${getCardStyle(ticket)}
+                                                    `}
+                                                >
+                                                    <div className="flex justify-between items-start mb-0.5">
+                                                        <div className={`font-bold ${textColorClass} flex items-center gap-1`}>
+                                                            <Clock size={10} />
+                                                            {ticket.scheduledTime}
+                                                        </div>
+                                                        <span className="font-mono text-[10px] text-gray-500">{ticket.ticketNumber}</span>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-start">
+                                                        <p className={`font-bold leading-tight truncate ${textColorClass}`} title={ticket.customerName}>
+                                                            {ticket.customerName}
+                                                        </p>
+                                                        {hasFault && <AlertTriangle size={12} className="text-red-500 shrink-0" />}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-500">
+                                                        <MapPin size={10} />
+                                                        <span className="truncate">{ticket.locality || 'N/A'}</span>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between mt-1 pt-1 border-t border-black/5">
+                                                         <span className="font-medium text-[10px] text-gray-600 truncate max-w-[70px]">
+                                                            {getServiceName(ticket.serviceId)}
+                                                         </span>
+                                                         {ticket.vehicleType && getVehicleIcon(ticket.vehicleType)}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Overnight Indicator */}
+                                    {isOvernight && (
+                                        <div className="mt-auto pt-2">
+                                            <div className="bg-indigo-600 text-white text-[9px] font-bold py-0.5 px-1.5 rounded flex items-center justify-center gap-1 shadow-sm">
+                                                <Moon size={8} />
+                                                NOITE
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
         </div>
       </div>

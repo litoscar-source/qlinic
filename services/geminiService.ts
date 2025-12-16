@@ -5,7 +5,14 @@ import { Ticket, RouteAnalysis } from "../types";
 const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
-export const analyzeRoute = async (tickets: Ticket[], technicianName: string): Promise<RouteAnalysis> => {
+export const analyzeRoute = async (
+    tickets: Ticket[], 
+    technicianName: string,
+    context: {
+        yesterdayOvernight: boolean;
+        todayOvernight: boolean;
+    }
+): Promise<RouteAnalysis> => {
   if (tickets.length < 2) {
     throw new Error("São necessários pelo menos 2 tickets para calcular uma rota.");
   }
@@ -14,26 +21,49 @@ export const analyzeRoute = async (tickets: Ticket[], technicianName: string): P
   const sortedTickets = [...tickets].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
 
   const stops = sortedTickets.map((t, index) => 
-    `${index + 1}. [${t.scheduledTime} - ${t.duration}h] ${t.customerName} - ${t.address}`
+    `${index + 1}. [${t.scheduledTime} - ${t.duration}h] Cliente: ${t.customerName}, Morada/CP: ${t.address}`
   ).join("\n");
 
+  const headquarters = "Braga, Portugal";
+
+  let routingLogicDescription = "";
+  if (context.yesterdayOvernight) {
+      routingLogicDescription += "- O técnico dormiu fora na noite anterior. O ponto de partida é o LOCAL DO PRIMEIRO CLIENTE (não sai de Braga).\n";
+  } else {
+      routingLogicDescription += `- O técnico sai da sede em ${headquarters}.\n`;
+  }
+
+  if (context.todayOvernight) {
+      routingLogicDescription += "- O técnico dorme fora hoje. A rota TERMINA NO ÚLTIMO CLIENTE (não volta a Braga).\n";
+  } else {
+      routingLogicDescription += `- Após o último serviço, o técnico deve regressar à sede em ${headquarters}.\n`;
+  }
+
   const prompt = `
-    Atue como um gestor de logística e tráfego. Eu tenho uma lista de paragens agendadas para: ${technicianName}.
+    Atue como um gestor de logística e tráfego inteligente em Portugal.
+    Estou a calcular a rota para o técnico ${technicianName}.
     
-    Lista de Paragens:
+    CRITÉRIO PRINCIPAL DE LOCALIZAÇÃO: Use preferencialmente o CÓDIGO POSTAL indicado nas moradas para precisão.
+
+    Regras de Deslocação (Baseado em estadias):
+    ${routingLogicDescription}
+    
+    Lista de Serviços Agendados (Paragens):
     ${stops}
 
-    Por favor, calcule/estime o tempo de deslocação e a distância entre cada paragem consecutiva (1->2, 2->3, etc.) usando o Google Maps para verificar as localizações.
-    Considere também a duração de cada serviço para ver se o horário é exequível, mas o foco principal é o tempo de viagem entre pontos.
+    Instruções:
+    1. Calcule a rota seguindo estritamente as regras de início e fim acima.
+    2. Considere a ordem cronológica dos serviços.
+    3. Estime tempos de condução realistas para Portugal.
     
-    IMPORTANTE: Retorne APENAS um JSON válido seguindo este esquema. Não inclua Markdown (como \`\`\`json) ou texto adicional.
+    IMPORTANTE: Retorne APENAS um JSON válido seguindo este esquema. Não inclua Markdown.
     {
-      "totalTime": "tempo total de condução estimado (ex: 1h 30m)",
-      "totalDistance": "distância total estimada (ex: 45 km)",
+      "totalTime": "tempo total de condução + tempos de serviço (ex: 8h 30m)",
+      "totalDistance": "distância total percorrida (ex: 145 km)",
       "segments": [
         {
-          "from": "Endereço ou nome de origem",
-          "to": "Endereço ou nome de destino",
+          "from": "Local Origem (Sede ou Cliente Anterior)",
+          "to": "Local Destino (Cliente ou Sede)",
           "estimatedTime": "ex: 15 min",
           "distance": "ex: 5 km"
         }
@@ -47,14 +77,12 @@ export const analyzeRoute = async (tickets: Ticket[], technicianName: string): P
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
-        // responseMimeType and responseSchema MUST NOT be set when using googleMaps
       },
     });
 
     let jsonText = response.text;
     if (!jsonText) throw new Error("Sem resposta da IA");
 
-    // Clean markdown formatting if present
     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     let data;
@@ -65,7 +93,6 @@ export const analyzeRoute = async (tickets: Ticket[], technicianName: string): P
         throw new Error("Formato de resposta inválido da IA.");
     }
     
-    // Extract grounding URLs if available
     const groundingUrls: string[] = [];
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {

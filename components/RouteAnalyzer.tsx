@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Ticket, RouteAnalysis, Technician, DayStatus } from '../types';
 import { analyzeRoute } from '../services/geminiService';
 import { Map, Loader2, Navigation, AlertCircle } from 'lucide-react';
+import { subDays, isSameDay } from 'date-fns';
 
 interface RouteAnalyzerProps {
   tickets: Ticket[];
@@ -14,26 +15,29 @@ interface RouteAnalyzerProps {
 export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({ 
     tickets, 
     technicians, 
-    dayStatuses,
+    dayStatuses = [],
     technicianName: propTechnicianName 
 }) => {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<RouteAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const getPrimaryTechId = () => {
+    if (!tickets.length) return null;
+    const techCounts: Record<string, number> = {};
+    tickets.forEach(t => {
+        t.technicianIds.forEach(id => {
+            techCounts[id] = (techCounts[id] || 0) + 1;
+        });
+    });
+    return Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b, Object.keys(techCounts)[0]);
+  };
+
   const getTechnicianName = () => {
       if (propTechnicianName) return propTechnicianName;
       if (!technicians || tickets.length === 0) return 'Técnico';
       
-      // Try to find the most frequent tech in tickets
-      const techCounts: Record<string, number> = {};
-      tickets.forEach(t => {
-          t.technicianIds.forEach(id => {
-              techCounts[id] = (techCounts[id] || 0) + 1;
-          });
-      });
-      
-      const primaryTechId = Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b, Object.keys(techCounts)[0]);
+      const primaryTechId = getPrimaryTechId();
       const tech = technicians.find(t => t.id === primaryTechId);
       return tech ? tech.name : 'Técnico';
   };
@@ -48,7 +52,30 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({
     setError(null);
     try {
       const name = getTechnicianName();
-      const result = await analyzeRoute(tickets, name);
+      const techId = getPrimaryTechId();
+      const routeDate = tickets[0].date;
+
+      // Determine overnight context
+      let yesterdayOvernight = false;
+      let todayOvernight = false;
+
+      if (techId && routeDate) {
+          const yesterday = subDays(routeDate, 1);
+          
+          yesterdayOvernight = dayStatuses.some(ds => 
+              ds.technicianId === techId && 
+              ds.isOvernight && 
+              isSameDay(ds.date, yesterday)
+          );
+
+          todayOvernight = dayStatuses.some(ds => 
+              ds.technicianId === techId && 
+              ds.isOvernight && 
+              isSameDay(ds.date, routeDate)
+          );
+      }
+
+      const result = await analyzeRoute(tickets, name, { yesterdayOvernight, todayOvernight });
       setAnalysis(result);
     } catch (err) {
       setError("Falha ao analisar rota. Verifique a chave API ou tente novamente.");
