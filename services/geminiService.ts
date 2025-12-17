@@ -2,9 +2,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { Ticket, RouteAnalysis } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
-
 export const analyzeRoute = async (
     tickets: Ticket[], 
     technicianName: string,
@@ -13,9 +10,12 @@ export const analyzeRoute = async (
         todayOvernight: boolean;
     }
 ): Promise<RouteAnalysis> => {
-  if (tickets.length < 2) {
-    throw new Error("São necessários pelo menos 2 tickets para calcular uma rota.");
+  if (tickets.length === 0) {
+    throw new Error("São necessários serviços para calcular uma rota.");
   }
+
+  // Always initialize GoogleGenAI inside the function to use the most current API key
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Sort tickets by time
   const sortedTickets = [...tickets].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
@@ -24,39 +24,37 @@ export const analyzeRoute = async (
     `${index + 1}. [${t.scheduledTime} - ${t.duration}h] Cliente: ${t.customerName}, Morada/CP: ${t.address}`
   ).join("\n");
 
-  const headquarters = "Braga, Portugal";
+  const headquarters = "4705-471, Braga, Portugal";
 
   let routingLogicDescription = "";
   if (context.yesterdayOvernight) {
-      routingLogicDescription += "- O técnico dormiu fora na noite anterior. O ponto de partida é o LOCAL DO PRIMEIRO CLIENTE (não sai de Braga).\n";
+      routingLogicDescription += "- O técnico dormiu fora na noite anterior. O ponto de partida é o LOCAL DO PRIMEIRO CLIENTE.\n";
   } else {
-      routingLogicDescription += `- O técnico sai da sede em ${headquarters}.\n`;
+      routingLogicDescription += `- O técnico sai da sede no código postal ${headquarters}.\n`;
   }
 
   if (context.todayOvernight) {
-      routingLogicDescription += "- O técnico dorme fora hoje. A rota TERMINA NO ÚLTIMO CLIENTE (não volta a Braga).\n";
+      routingLogicDescription += "- O técnico dorme fora hoje. A rota TERMINA NO ÚLTIMO CLIENTE.\n";
   } else {
-      routingLogicDescription += `- Após o último serviço, o técnico deve regressar à sede em ${headquarters}.\n`;
+      routingLogicDescription += `- Após o último serviço, o técnico regressa à sede no código postal ${headquarters}.\n`;
   }
 
   const prompt = `
     Atue como um gestor de logística e tráfego inteligente em Portugal.
     Estou a calcular a rota para o técnico ${technicianName}.
     
-    CRITÉRIO PRINCIPAL DE LOCALIZAÇÃO: Use preferencialmente o CÓDIGO POSTAL indicado nas moradas para precisão.
+    CRITÉRIO PRINCIPAL DE LOCALIZAÇÃO: Use o CÓDIGO POSTAL indicado nas moradas para precisão absoluta.
 
-    Regras de Deslocação (Baseado em estadias):
+    Regras de Deslocação:
     ${routingLogicDescription}
     
-    Lista de Serviços Agendados (Paragens):
+    Serviço(s) Agendado(s):
     ${stops}
 
     Instruções:
     1. Calcule a rota seguindo estritamente as regras de início e fim acima.
-    2. Considere a ordem cronológica dos serviços.
-    3. Estime tempos de condução realistas para Portugal.
-    
-    IMPORTANTE: Retorne APENAS um JSON válido seguindo este esquema. Não inclua Markdown.
+    2. Se houver apenas um serviço, calcule IDA (Sede -> Cliente) e REGRESSO (Cliente -> Sede), a menos que as regras de dormida digam o contrário.
+    3. Retorne APENAS um JSON válido seguindo este esquema. Não inclua Markdown.
     {
       "totalTime": "tempo total de condução + tempos de serviço (ex: 8h 30m)",
       "totalDistance": "distância total percorrida (ex: 145 km)",
@@ -73,13 +71,14 @@ export const analyzeRoute = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-flash", // Maps grounding is only supported in Gemini 2.5 series
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
       },
     });
 
+    // Directly access the text property as per the SDK rules
     let jsonText = response.text;
     if (!jsonText) throw new Error("Sem resposta da IA");
 

@@ -43,13 +43,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return tickets.filter(t => isSameDay(t.date, date) && (!selectedTechId || t.technicianIds.includes(selectedTechId)));
   };
 
+  // Fix: mapping the correct TicketStatus values to their respective UI colors
   const getStatusColor = (status: TicketStatus) => {
     switch (status) {
-      case TicketStatus.RESOLVIDO: return 'bg-green-100 text-green-700 border-green-200';
-      case TicketStatus.PENDENTE: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case TicketStatus.EM_ANDAMENTO: return 'bg-blue-100 text-blue-700 border-blue-200';
-      case TicketStatus.NAO_RESOLVIDO: return 'bg-red-100 text-red-700 border-red-200';
-      default: return 'bg-gray-100 text-gray-600';
+      case TicketStatus.RESOLVIDO: 
+        return 'bg-green-100 text-green-700 border-green-200';
+      case TicketStatus.EM_ANDAMENTO: 
+        return 'bg-blue-100 text-blue-700 border-blue-200';
+      case TicketStatus.NAO_CONFIRMADO: 
+        return 'bg-red-50 text-red-600 border-red-100';
+      case TicketStatus.CONFIRMADO: 
+        return 'bg-gray-100 text-gray-900 border-gray-300';
+      case TicketStatus.PARCIALMENTE_RESOLVIDO: 
+        return 'bg-orange-100 text-orange-700 border-orange-200';
+      case TicketStatus.NAO_REALIZADO: 
+        return 'bg-red-100 text-red-800 border-red-200';
+      default: 
+        return 'bg-gray-100 text-gray-600';
     }
   };
 

@@ -1,4 +1,3 @@
-
 export enum VehicleType {
   CARRO = 'Carro Ligeiro',
   CARRINHA = 'Carrinha Comercial',
@@ -10,21 +9,24 @@ export enum VehicleType {
 }
 
 export enum TicketStatus {
-  PENDENTE = 'Pendente',
-  EM_ANDAMENTO = 'Em Andamento',
-  RESOLVIDO = 'Resolvido',
-  NAO_RESOLVIDO = 'Não Resolvido',
+  NAO_CONFIRMADO = 'Não Confirmado',
   CONFIRMADO = 'Confirmado',
-  PRE_AGENDADO = 'Pré-Agendado',
-  NAO_REALIZADO = 'Não Realizado',
-  PARCIALMENTE_RESOLVIDO = 'Parcialmente Resolvido'
+  PARCIALMENTE_RESOLVIDO = 'Parcialmente Resolvido',
+  RESOLVIDO = 'Resolvido',
+  EM_ANDAMENTO = 'Em Andamento',
+  NAO_REALIZADO = 'Não Realizado'
 }
 
 export interface ServiceDefinition {
   id: string;
   name: string;
   defaultDuration: number;
-  colorClass: string; // e.g., 'bg-blue-100 text-blue-800 border-blue-200'
+  colorClass: string; // Tailwind bg class
+}
+
+export interface Visor {
+  id: string;
+  name: string;
 }
 
 export interface Technician {
@@ -40,11 +42,13 @@ export interface Ticket {
   customerName: string;
   address: string;
   vehicleType: VehicleType;
-  serviceId: string; // References ServiceDefinition.id
+  serviceId: string;
+  visorId?: string; // Campo opcional para reconstruções
   status: TicketStatus;
   date: Date;
-  scheduledTime: string; // HH:mm
-  duration: number; // Duração em horas
+  scheduledTime: string;
+  duration: number;
+  travelTimeMinutes?: number;
   notes?: string;
   locality?: string;
   processNumber?: string;

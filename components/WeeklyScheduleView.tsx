@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   format, 
@@ -11,8 +10,8 @@ import {
   subDays
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { Ticket, TicketStatus, Technician, ServiceDefinition, VehicleType, DayStatus } from '../types';
-import { MapPin, Clock, GripHorizontal, Car, Truck, AlertTriangle, Moon, Plus, ArrowLeft, Users } from 'lucide-react';
+import { Ticket, TicketStatus, Technician, ServiceDefinition, VehicleType, DayStatus, Visor } from '../types';
+import { MapPin, Clock, Truck, Car, AlertTriangle, Moon, Plus, ArrowLeft, Users, CheckCircle2, Monitor } from 'lucide-react';
 
 interface WeeklyScheduleViewProps {
   currentDate: Date;
@@ -20,8 +19,9 @@ interface WeeklyScheduleViewProps {
   dayStatuses: DayStatus[];
   technicians: Technician[];
   services: ServiceDefinition[];
+  visores?: Visor[];
   onTicketUpdate: (ticketId: string, updates: Partial<Ticket>) => void;
-  onTicketMove?: (ticketId: string, newDate: Date, newTechId: string) => void;
+  onTicketMove?: (ticketId: string, newDate: Date, newTechId: string, sourceTechId?: string | null) => void;
   onTicketSwap?: (sourceId: string, targetId: string) => void;
   onEditTicket: (ticket: Ticket) => void;
   onNewTicket?: (date: Date, techId: string) => void;
@@ -37,6 +37,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
   dayStatuses,
   technicians,
   services,
+  visores = [],
   onTicketUpdate,
   onTicketMove,
   onTicketSwap,
@@ -51,7 +52,6 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ 
     x: number, 
     y: number, 
@@ -93,7 +93,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
          const ticket = tickets.find(t => t.id === contextMenu.data);
          if (ticket) {
              const newDate = subDays(ticket.date, 3);
-             onTicketMove(ticket.id, newDate, ticket.technicianIds[0]);
+             onTicketMove(ticket.id, newDate, ticket.technicianIds[0], ticket.technicianIds[0]);
              setContextMenu(null);
          }
      }
@@ -116,44 +116,39 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
       case VehicleType.CAMIAO_PEQUENO:
       case VehicleType.CAMIAO_GRANDE:
       case VehicleType.IVECO:
-        return <Truck size={12} />;
+        return <Truck size={10} />;
       default: 
-        return <Car size={12} />;
+        return <Car size={10} />;
     }
   };
 
-  const getServiceName = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    return service ? service.name : 'Serviço';
-  };
-
-  const getCardStyle = (ticket: Ticket) => {
-    const service = services.find(s => s.id === ticket.serviceId);
-    const serviceName = service?.name.toLowerCase() || '';
-
-    let bgClass = 'bg-white';
-    if (serviceName.includes('instalação')) bgClass = 'bg-blue-50';
-    else if (serviceName.includes('calibração')) bgClass = 'bg-green-50';
-    else if (serviceName.includes('acompanhamento') || serviceName.includes('verificação')) bgClass = 'bg-purple-50';
-    else if (serviceName.includes('construção')) bgClass = 'bg-gray-100';
-    else if (serviceName.includes('assistência')) bgClass = 'bg-white';
+  const getCardStyle = (ticket: Ticket, service: ServiceDefinition | undefined) => {
+    let style = `${service?.colorClass || 'bg-white'} border border-gray-300 shadow-md `;
     
-    let borderClass = 'border-l-4';
+    let statusBorder = 'border-l-[8px]';
     switch (ticket.status) {
-      case TicketStatus.RESOLVIDO: borderClass += ' border-green-600'; break;
-      case TicketStatus.CONFIRMADO: borderClass += ' border-black'; break;
-      case TicketStatus.PRE_AGENDADO: borderClass += ' border-gray-400 border-dashed'; break;
-      case TicketStatus.NAO_REALIZADO: borderClass += ' border-red-500'; break;
-      case TicketStatus.PARCIALMENTE_RESOLVIDO: borderClass += ' border-orange-500'; break;
-      default: borderClass += ' border-gray-300';
+      case TicketStatus.RESOLVIDO: statusBorder += ' border-l-green-600'; break;
+      case TicketStatus.CONFIRMADO: statusBorder += ' border-l-gray-900'; break;
+      case TicketStatus.NAO_CONFIRMADO: statusBorder += ' border-l-red-500 border-dashed'; break;
+      case TicketStatus.NAO_REALIZADO: statusBorder += ' border-l-red-800'; break;
+      case TicketStatus.PARCIALMENTE_RESOLVIDO: statusBorder += ' border-l-orange-500'; break;
+      default: statusBorder += ' border-l-blue-600';
     }
-
-    return `${bgClass} ${borderClass} border-y border-r border-gray-200`;
+    
+    return `${style} ${statusBorder}`;
   };
 
-  const handleDragStart = (e: React.DragEvent, ticketId: string) => {
+  const getTextColor = (status: TicketStatus) => {
+    if (status === TicketStatus.NAO_CONFIRMADO) return 'text-red-700';
+    if (status === TicketStatus.CONFIRMADO) return 'text-black';
+    if (status === TicketStatus.RESOLVIDO) return 'text-green-800';
+    return 'text-gray-900';
+  };
+
+  const handleDragStart = (e: React.DragEvent, ticketId: string, sourceTechId: string) => {
     if (isReadOnly) return;
     e.dataTransfer.setData('ticketId', ticketId);
+    e.dataTransfer.setData('sourceTechId', sourceTechId);
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -177,40 +172,29 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     if (isReadOnly) return;
     e.preventDefault();
     const ticketId = e.dataTransfer.getData('ticketId');
+    const sourceTechId = e.dataTransfer.getData('sourceTechId');
     if (ticketId && onTicketMove) {
-        onTicketMove(ticketId, date, techId);
+        onTicketMove(ticketId, date, techId, sourceTechId);
     }
   };
 
-  const handleCellClick = (e: React.MouseEvent, date: Date) => {
-    if (e.target === e.currentTarget) {
-         onSelectDate(date);
-    }
-  };
-
-  // Fixed column width for technicians, flexible for days
-  const gridTemplateColumns = `220px repeat(7, minmax(160px, 1fr))`;
+  const gridTemplateColumns = `180px repeat(7, minmax(150px, 1fr))`;
 
   return (
     <>
     <div className="bg-white rounded-t-2xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden select-none">
       <div className="overflow-auto h-full relative custom-scrollbar">
-        <div style={{ minWidth: '1340px' }}> {/* Force width to prevent squashing on small screens */}
-            
-            {/* Header: Days of Week */}
+        <div style={{ minWidth: '1240px' }}>
             <div 
                 className="grid border-b border-gray-200 bg-gray-50 sticky top-0 z-20 shadow-sm"
                 style={{ gridTemplateColumns }}
             >
-                {/* Top Left Corner */}
-                <div className="p-3 font-bold text-gray-500 text-xs uppercase tracking-wider flex items-center justify-center border-r border-gray-200 bg-white z-30 sticky left-0 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                <div className="p-3 text-gray-500 text-[10px] uppercase tracking-widest flex items-center justify-center border-r border-gray-200 bg-white z-30 sticky left-0 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] font-normal">
                     <div className="flex items-center gap-2">
-                         <Users size={16} />
-                         Equipa
+                         <Users size={14} /> EQUIPA
                     </div>
                 </div>
 
-                {/* Days Columns */}
                 {daysInWeek.map(day => {
                     const isSelected = isSameDay(day, selectedDate);
                     const isWknd = isWeekend(day);
@@ -221,16 +205,16 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                             key={day.toISOString()}
                             onClick={() => onSelectDate(day)}
                             className={`
-                                p-2 border-r border-gray-200 last:border-r-0 flex flex-col items-center justify-center cursor-pointer transition-colors
+                                p-2 border-r border-gray-200 last:border-r-0 flex flex-col items-center justify-center cursor-pointer transition-colors font-normal
                                 ${isWknd ? 'bg-gray-100/50' : 'bg-gray-50'}
-                                ${isSelected ? 'bg-blue-50/80 ring-inset ring-2 ring-blue-500' : 'hover:bg-gray-100'}
-                                ${isCurrent ? 'bg-blue-50' : ''}
+                                ${isSelected ? 'bg-blue-50 ring-inset ring-2 ring-blue-500' : 'hover:bg-gray-100'}
+                                ${isCurrent ? 'bg-red-50' : ''}
                             `}
                         >
-                            <span className="text-[10px] font-bold uppercase text-gray-500">
+                            <span className="text-[10px] uppercase text-gray-400 font-normal">
                                 {format(day, 'EEE', { locale: pt })}
                             </span>
-                            <div className={`text-xl font-bold leading-none my-1 ${isCurrent ? 'text-blue-600' : 'text-gray-800'}`}>
+                            <div className={`text-xl leading-none my-0.5 font-normal ${isCurrent ? 'text-red-700' : 'text-gray-800'}`}>
                                 {format(day, 'dd')}
                             </div>
                         </div>
@@ -238,23 +222,20 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                 })}
             </div>
 
-            {/* Body: Technicians Rows */}
             <div className="divide-y divide-gray-200">
                 {technicians.map(tech => (
                     <div 
                         key={tech.id} 
-                        className="grid group/row hover:bg-gray-50/30 transition-colors"
+                        className="grid group/row hover:bg-gray-50/20 transition-colors"
                         style={{ gridTemplateColumns }}
                     >
-                        {/* Technician Name (Sticky Left) */}
-                        <div className="sticky left-0 z-10 bg-white p-3 border-r border-gray-200 flex items-center gap-3 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] group-hover/row:bg-gray-50/50 transition-colors">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm ${tech.avatarColor} shrink-0`}>
+                        <div className="sticky left-0 z-10 bg-white p-3 border-r border-gray-200 flex items-center gap-3 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] group-hover/row:bg-gray-50/50 transition-colors font-normal">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] shadow-lg ${tech.avatarColor} shrink-0 font-normal`}>
                                 {tech.name.substring(0, 2).toUpperCase()}
                             </div>
-                            <span className="font-bold text-gray-700 text-sm truncate">{tech.name}</span>
+                            <span className="text-gray-800 text-xs truncate uppercase tracking-tighter font-normal">{tech.name}</span>
                         </div>
 
-                        {/* Days Cells */}
                         {daysInWeek.map(day => {
                              const dayTechTickets = tickets.filter(t => 
                                 isSameDay(t.date, day) && 
@@ -267,33 +248,30 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                 ds.isOvernight
                             );
                             
-                            const isWknd = isWeekend(day);
                             const isSelected = isSameDay(day, selectedDate);
 
                             return (
                                 <div
                                     key={`${day.toISOString()}-${tech.id}`}
-                                    className={`
-                                        p-1.5 border-r border-gray-200 last:border-r-0 min-h-[140px] flex flex-col
-                                        ${isWknd ? 'bg-gray-100/30' : ''}
-                                        ${isSelected ? 'bg-blue-50/20' : ''}
-                                    `}
-                                    onClick={(e) => handleCellClick(e, day)}
+                                    className={`p-2 border-r border-gray-200 last:border-r-0 min-h-[190px] flex flex-col gap-2 ${isSelected ? 'bg-blue-50/10' : ''}`}
+                                    onClick={() => onSelectDate(day)}
                                     onContextMenu={(e) => handleCellContextMenu(e, day, tech.id)}
                                     onDragOver={handleDragOver}
                                     onDrop={(e) => handleDropOnCell(e, day, tech.id)}
                                 >
                                     <div className="flex-1 space-y-2">
                                         {dayTechTickets.map(ticket => {
-                                            const isResolved = ticket.status === TicketStatus.RESOLVIDO;
+                                            const service = services.find(s => s.id === ticket.serviceId);
                                             const hasFault = !!ticket.faultDescription;
-                                            const textColorClass = isResolved ? 'text-green-800' : 'text-gray-800';
+                                            const textCls = getTextColor(ticket.status);
+                                            const isRecon = service?.name.toLowerCase().includes('reconstrução');
+                                            const visorName = isRecon && ticket.visorId ? visores.find(v => v.id === ticket.visorId)?.name : null;
                                             
                                             return (
                                                 <div 
-                                                    key={ticket.id}
+                                                    key={`${ticket.id}-${tech.id}`}
                                                     draggable={!isReadOnly}
-                                                    onDragStart={(e) => handleDragStart(e, ticket.id)}
+                                                    onDragStart={(e) => handleDragStart(e, ticket.id, tech.id)}
                                                     onDrop={(e) => handleDropOnTicket(e, ticket.id)}
                                                     onDragOver={handleDragOver}
                                                     onClick={(e) => {
@@ -302,51 +280,42 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                                     }}
                                                     onContextMenu={(e) => handleTicketContextMenu(e, ticket.id)}
                                                     className={`
-                                                        rounded p-1.5 shadow-sm transition-all text-xs relative overflow-hidden group 
-                                                        ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:scale-[1.02] hover:z-10 hover:shadow-md'}
-                                                        ${getCardStyle(ticket)}
+                                                        rounded-lg p-3 transition-all relative group font-normal
+                                                        ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:shadow-xl hover:-translate-y-1'}
+                                                        ${getCardStyle(ticket, service)}
                                                     `}
                                                 >
-                                                    <div className="flex justify-between items-start mb-0.5">
-                                                        <div className={`font-bold ${textColorClass} flex items-center gap-1`}>
-                                                            <Clock size={10} />
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className={`flex items-center gap-1.5 text-[12px] font-normal ${textCls}`}>
+                                                            <Clock size={11} className="shrink-0" />
                                                             {ticket.scheduledTime}
                                                         </div>
-                                                        <span className="font-mono text-[10px] text-gray-500">{ticket.ticketNumber}</span>
+                                                        <div className="flex items-center gap-1.5 shrink-0 bg-white/40 px-1 rounded">
+                                                            {ticket.status === TicketStatus.CONFIRMADO && <CheckCircle2 size={12} className="text-black" />}
+                                                            <span className="text-[9px] text-gray-700 font-normal">#{ticket.ticketNumber}</span>
+                                                        </div>
                                                     </div>
 
-                                                    <div className="flex justify-between items-start">
-                                                        <p className={`font-bold leading-tight truncate ${textColorClass}`} title={ticket.customerName}>
-                                                            {ticket.customerName}
-                                                        </p>
-                                                        {hasFault && <AlertTriangle size={12} className="text-red-500 shrink-0" />}
+                                                    <p className={`leading-tight text-sm mb-2 uppercase tracking-tight truncate text-center font-normal ${textCls}`} title={ticket.customerName}>
+                                                        {ticket.customerName}
+                                                    </p>
+
+                                                    <div className="flex items-center gap-1.5 mb-2 bg-white/20 p-1 rounded justify-center">
+                                                        <MapPin size={10} className="shrink-0 text-red-600" />
+                                                        <span className="text-[10px] text-gray-800 truncate uppercase tracking-tight font-normal">{ticket.locality || 'N/A'}</span>
                                                     </div>
 
-                                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-500">
-                                                        <MapPin size={10} />
-                                                        <span className="truncate">{ticket.locality || 'N/A'}</span>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between mt-1 pt-1 border-t border-black/5">
-                                                         <span className="font-medium text-[10px] text-gray-600 truncate max-w-[70px]">
-                                                            {getServiceName(ticket.serviceId)}
-                                                         </span>
-                                                         {ticket.vehicleType && getVehicleIcon(ticket.vehicleType)}
+                                                    <div className="flex items-center justify-between pt-2 border-t border-black/10">
+                                                         <div className="flex flex-col">
+                                                            <span className="text-[9px] uppercase text-gray-700 tracking-wider font-normal">
+                                                                {service?.name || 'Serviço'}
+                                                            </span>
+                                                         </div>
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
-
-                                    {/* Overnight Indicator */}
-                                    {isOvernight && (
-                                        <div className="mt-auto pt-2">
-                                            <div className="bg-indigo-600 text-white text-[9px] font-bold py-0.5 px-1.5 rounded flex items-center justify-center gap-1 shadow-sm">
-                                                <Moon size={8} />
-                                                NOITE
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}
@@ -356,60 +325,6 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
         </div>
       </div>
     </div>
-
-    {/* Context Menu */}
-    {contextMenu && (
-        <div 
-            ref={contextMenuRef}
-            className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50 w-56 text-sm ring-1 ring-black ring-opacity-5 animate-in fade-in zoom-in-95 duration-100"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-            {contextMenu.type === 'ticket' ? (
-                <>
-                    <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">
-                        Ações Rápidas
-                    </div>
-                    <button
-                        onClick={handleMoveBack3Days}
-                        className="w-full text-left px-4 py-2.5 hover:bg-orange-50 hover:text-orange-700 transition-colors text-gray-700 font-medium flex items-center gap-2 border-b border-gray-100"
-                    >
-                        <ArrowLeft size={16} /> Recuar 3 Dias
-                    </button>
-                    
-                    <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 mt-1">
-                        Alterar Estado
-                    </div>
-                    {Object.values(TicketStatus).map(status => (
-                        <button
-                            key={status}
-                            onClick={() => handleChangeStatus(status)}
-                            className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 transition-colors text-gray-700 font-medium border-b border-gray-50 last:border-b-0"
-                        >
-                            {status}
-                        </button>
-                    ))}
-                </>
-            ) : (
-                <>
-                    <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">
-                        Ações do Dia
-                    </div>
-                    <button
-                        onClick={() => handleCellAction('new')}
-                        className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 transition-colors text-gray-700 font-medium flex items-center gap-2"
-                    >
-                        <Plus size={16} /> Novo Serviço
-                    </button>
-                    <button
-                        onClick={() => handleCellAction('overnight')}
-                        className="w-full text-left px-4 py-2.5 hover:bg-indigo-50 hover:text-indigo-700 transition-colors text-gray-700 font-medium flex items-center gap-2 border-t border-gray-100"
-                    >
-                        <Moon size={16} /> Alternar Noite Fora
-                    </button>
-                </>
-            )}
-        </div>
-    )}
     </>
   );
 };

@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { Ticket, RouteAnalysis, Technician, DayStatus } from '../types';
 import { analyzeRoute } from '../services/geminiService';
-import { Map, Loader2, Navigation, AlertCircle } from 'lucide-react';
+import { Map, Loader2, Navigation, AlertCircle, ExternalLink } from 'lucide-react';
 import { subDays, isSameDay } from 'date-fns';
 
 interface RouteAnalyzerProps {
@@ -36,151 +35,101 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({
   const getTechnicianName = () => {
       if (propTechnicianName) return propTechnicianName;
       if (!technicians || tickets.length === 0) return 'Técnico';
-      
       const primaryTechId = getPrimaryTechId();
       const tech = technicians.find(t => t.id === primaryTechId);
       return tech ? tech.name : 'Técnico';
   };
 
   const handleAnalyze = async () => {
-    if (tickets.length < 2) {
-      setError("Adicione pelo menos 2 serviços para calcular a rota.");
+    if (tickets.length < 1) {
+      setError("Selecione um serviço.");
       return;
     }
-    
     setLoading(true);
     setError(null);
     try {
       const name = getTechnicianName();
       const techId = getPrimaryTechId();
       const routeDate = tickets[0].date;
-
-      // Determine overnight context
       let yesterdayOvernight = false;
       let todayOvernight = false;
 
       if (techId && routeDate) {
           const yesterday = subDays(routeDate, 1);
-          
-          yesterdayOvernight = dayStatuses.some(ds => 
-              ds.technicianId === techId && 
-              ds.isOvernight && 
-              isSameDay(ds.date, yesterday)
-          );
-
-          todayOvernight = dayStatuses.some(ds => 
-              ds.technicianId === techId && 
-              ds.isOvernight && 
-              isSameDay(ds.date, routeDate)
-          );
+          yesterdayOvernight = dayStatuses.some(ds => ds.technicianId === techId && ds.isOvernight && isSameDay(ds.date, yesterday));
+          todayOvernight = dayStatuses.some(ds => ds.technicianId === techId && ds.isOvernight && isSameDay(ds.date, routeDate));
       }
 
       const result = await analyzeRoute(tickets, name, { yesterdayOvernight, todayOvernight });
       setAnalysis(result);
     } catch (err) {
-      setError("Falha ao analisar rota. Verifique a chave API ou tente novamente.");
+      setError("Erro na rota. Verifique a IA.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mt-6 h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-          <Map className="text-indigo-600" size={20} />
-          Análise de Rota ({getTechnicianName()})
+    <div className="bg-white rounded-xl border border-gray-100 p-4 h-full">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs text-gray-400 uppercase tracking-widest flex items-center gap-2 font-normal">
+          <Map className="text-red-600" size={14} /> Logística (Saída: 4705-471)
         </h3>
         {!analysis && (
           <button
             onClick={handleAnalyze}
-            disabled={loading || tickets.length < 2}
-            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+            disabled={loading || tickets.length < 1}
+            className="px-3 py-1.5 bg-red-600 text-white text-[10px] rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 transition-all uppercase shadow-md font-normal"
           >
-            {loading ? <Loader2 className="animate-spin" size={16} /> : <Navigation size={16} />}
-            Calcular Tempos
+            {loading ? <Loader2 className="animate-spin" size={12} /> : <Navigation size={12} />} Gerar Rota
           </button>
         )}
       </div>
 
-      {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2 mb-4">
-          <AlertCircle size={16} />
-          {error}
-        </div>
-      )}
+      {error && <div className="p-2 bg-red-50 text-red-600 rounded text-[10px] flex items-center gap-1 mb-2 font-normal"><AlertCircle size={12} /> {error}</div>}
 
       {analysis ? (
-        <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div className="flex gap-4 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-            <div>
-              <p className="text-xs text-indigo-500 uppercase font-bold tracking-wider">Tempo Total</p>
-              <p className="text-xl font-bold text-indigo-900">{analysis.totalTime}</p>
+        <div className="space-y-3 animate-in fade-in duration-300">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-2 bg-red-50/50 rounded-lg border border-red-100/50 font-normal">
+              <p className="text-[9px] text-red-400 uppercase font-normal">Tempo Previsto</p>
+              <p className="text-lg text-red-900 font-normal">{analysis.totalTime}</p>
             </div>
-            <div className="w-px bg-indigo-200"></div>
-            <div>
-              <p className="text-xs text-indigo-500 uppercase font-bold tracking-wider">Distância Total</p>
-              <p className="text-xl font-bold text-indigo-900">{analysis.totalDistance}</p>
+            <div className="p-2 bg-red-50/50 rounded-lg border border-red-100/50 font-normal">
+              <p className="text-[9px] text-red-400 uppercase font-normal">Distância Total</p>
+              <p className="text-lg text-red-900 font-normal">{analysis.totalDistance}</p>
             </div>
           </div>
 
-          <div className="relative">
-            <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-gray-200"></div>
-            <div className="space-y-6 relative">
-              {analysis.segments.map((segment, idx) => (
-                <div key={idx} className="ml-10 relative">
-                  <div className="absolute -left-[29px] top-1 w-3 h-3 rounded-full bg-white border-2 border-indigo-500 z-10"></div>
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">De: {segment.from}</p>
-                        <p className="text-sm font-medium text-gray-800 mt-1">Para: {segment.to}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="block text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                          {segment.estimatedTime}
-                        </span>
-                        <span className="block text-xs text-gray-500 mt-1">{segment.distance}</span>
-                      </div>
-                    </div>
-                  </div>
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+            {analysis.segments.map((segment, idx) => (
+              <div key={idx} className="p-2 bg-gray-50 rounded border border-gray-100 flex justify-between items-center text-[10px] font-normal">
+                <div className="min-w-0 pr-2 font-normal">
+                  <p className="text-gray-400 truncate font-normal">PARA: <span className="text-gray-900 font-normal">{segment.to}</span></p>
                 </div>
-              ))}
-            </div>
+                <div className="shrink-0 text-right font-normal">
+                  <span className="text-red-600 font-normal">{segment.estimatedTime}</span>
+                  <span className="block text-[8px] text-gray-500 font-normal">{segment.distance}</span>
+                </div>
+              </div>
+            ))}
           </div>
           
-          {analysis.groundingUrls.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 mb-2">Fontes Google Maps:</p>
-              <div className="flex flex-wrap gap-2">
-                {analysis.groundingUrls.map((url, i) => (
-                  <a 
-                    key={i} 
-                    href={url} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="text-xs text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded"
-                  >
-                    Ver no Mapa {i+1}
+          <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+            <div className="flex gap-2">
+                {analysis.groundingUrls.length > 0 && (
+                  <a href={analysis.groundingUrls[0]} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] text-blue-700 hover:underline uppercase font-normal">
+                    <ExternalLink size={10} /> Google Maps
                   </a>
-                ))}
-              </div>
+                )}
             </div>
-          )}
-
-          <div className="flex justify-end mt-2">
-            <button 
-                onClick={() => setAnalysis(null)}
-                className="text-xs text-gray-500 hover:text-gray-700 underline"
-            >
-                Limpar análise
-            </button>
+            <button onClick={() => setAnalysis(null)} className="text-[10px] text-gray-500 hover:text-red-600 uppercase underline font-normal">Limpar Análise</button>
           </div>
         </div>
       ) : (
-          <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-lg bg-gray-50/50">
-             <Map size={32} className="mb-2 opacity-50" />
-             <p>Selecione serviços para calcular a rota</p>
+          <div className="flex flex-col items-center justify-center h-40 text-gray-400 bg-gray-50/50 rounded-lg border-2 border-dashed border-gray-100 font-normal">
+             <Map size={24} className="mb-2 opacity-30" />
+             <p className="text-[10px] uppercase tracking-tight font-normal">Agendamentos no dia para gerar logística</p>
           </div>
       )}
     </div>
