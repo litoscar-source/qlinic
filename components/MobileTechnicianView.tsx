@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Ticket, TicketStatus, Technician, ServiceDefinition } from '../types';
-import { Clock, MapPin, Navigation, CheckCircle2, AlertCircle, Phone, FileText, ChevronRight, Calendar, User, Search } from 'lucide-react';
+import { Clock, MapPin, Navigation, CheckCircle2, AlertCircle, Phone, FileText, ChevronRight, Calendar, User, Search, CheckCircle } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -31,6 +31,7 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
       case TicketStatus.RESOLVIDO: return 'bg-emerald-500';
       case TicketStatus.CONFIRMADO: return 'bg-slate-900';
       case TicketStatus.PARCIALMENTE_RESOLVIDO: return 'bg-orange-500';
+      case TicketStatus.EM_ANDAMENTO: return 'bg-blue-500';
       default: return 'bg-red-500';
     }
   };
@@ -74,7 +75,7 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
                 const isResolved = ticket.status === TicketStatus.RESOLVIDO;
                 
                 return (
-                    <div key={ticket.id} className={`bg-white rounded-3xl border-2 border-slate-200 shadow-sm overflow-hidden transition-all active:scale-[0.98] ${isResolved ? 'opacity-60 grayscale' : ''}`}>
+                    <div key={ticket.id} className={`bg-white rounded-3xl border-2 border-slate-200 shadow-sm overflow-hidden transition-all ${isResolved ? 'opacity-60 grayscale' : ''}`}>
                         <div className="p-5">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-2">
@@ -89,7 +90,7 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
                             </div>
 
                             <div className="space-y-4">
-                                <div>
+                                <div onClick={() => onViewDetails(ticket)}>
                                     <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-tight">{ticket.customerName}</h3>
                                     <div className="flex items-center gap-2 mt-2 text-slate-500">
                                         <MapPin size={16} className="text-red-500 shrink-0" />
@@ -118,10 +119,17 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
                                 className="flex-1 bg-white border border-slate-300 text-slate-900 py-4 rounded-2xl flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-sm active:bg-slate-50">
                                 <Navigation size={18} /> GPS
                             </a>
-                            <button onClick={() => onViewDetails(ticket)}
-                                className="flex-1 bg-red-600 text-white py-4 rounded-2xl flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-100 active:scale-95">
-                                <ChevronRight size={18} /> Detalhes
-                            </button>
+                            {!isResolved ? (
+                                <button onClick={() => onUpdateStatus(ticket.id, TicketStatus.RESOLVIDO)}
+                                    className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-100 active:scale-95 transition-all">
+                                    <CheckCircle size={18} /> Finalizar
+                                </button>
+                            ) : (
+                                <button onClick={() => onViewDetails(ticket)}
+                                    className="flex-1 bg-slate-900 text-white py-4 rounded-2xl flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95">
+                                    <ChevronRight size={18} /> Detalhes
+                                </button>
+                            )}
                         </div>
                     </div>
                 );
@@ -131,7 +139,7 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
 
       {/* Mobile Footer Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-8 py-4 flex justify-around items-center z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-        <button className="flex flex-col items-center gap-1 text-red-600">
+        <button onClick={() => setSelectedDate(new Date())} className="flex flex-col items-center gap-1 text-red-600">
             <Calendar size={24} />
             <span className="text-[8px] font-black uppercase tracking-widest">Agenda</span>
         </button>

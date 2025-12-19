@@ -2,6 +2,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { Ticket, RouteAnalysis } from "../types";
 
+declare var process: any;
+
 export const analyzeRoute = async (
     tickets: Ticket[], 
     technicianName: string,

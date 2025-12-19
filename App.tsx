@@ -224,7 +224,7 @@ function App() {
                 tickets={tickets} 
                 technicianId={user.technicianId} 
                 services={services} 
-                onUpdateStatus={handleUpdateTicket}
+                onUpdateStatus={(id, status) => handleUpdateTicket(id, { status })}
                 onViewDetails={(t) => { setEditingTicket(t); setIsTicketModalOpen(true); }}
             />
             <button onClick={() => setUser(null)} className="fixed top-4 right-4 z-50 bg-white/20 p-2 rounded-full text-white backdrop-blur-sm">
