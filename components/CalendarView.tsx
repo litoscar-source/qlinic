@@ -8,7 +8,8 @@ import {
   isSameMonth, 
   isSameDay, 
   getDay,
-  isToday
+  isToday,
+  isWeekend
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Ticket, TicketStatus, Technician } from '../types';
@@ -43,66 +44,70 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return tickets.filter(t => isSameDay(t.date, date) && (!selectedTechId || t.technicianIds.includes(selectedTechId)));
   };
 
-  // Fix: mapping the correct TicketStatus values to their respective UI colors
   const getStatusColor = (status: TicketStatus) => {
     switch (status) {
       case TicketStatus.RESOLVIDO: 
-        return 'bg-green-100 text-green-700 border-green-200';
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case TicketStatus.EM_ANDAMENTO: 
         return 'bg-blue-100 text-blue-700 border-blue-200';
       case TicketStatus.NAO_CONFIRMADO: 
-        return 'bg-red-50 text-red-600 border-red-100';
+        return 'bg-rose-50 text-rose-600 border-rose-100';
       case TicketStatus.CONFIRMADO: 
-        return 'bg-gray-100 text-gray-900 border-gray-300';
+        return 'bg-slate-100 text-slate-800 border-slate-200';
       case TicketStatus.PARCIALMENTE_RESOLVIDO: 
-        return 'bg-orange-100 text-orange-700 border-orange-200';
+        return 'bg-orange-50 text-orange-700 border-orange-200';
       case TicketStatus.NAO_REALIZADO: 
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-50 text-red-800 border-red-100';
       default: 
-        return 'bg-gray-100 text-gray-600';
+        return 'bg-slate-50 text-slate-600';
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden font-sans antialiased">
       {/* Weekday Headers */}
-      <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-        {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(day => (
-          <div key={day} className="py-3 text-center text-sm font-semibold text-gray-500">
-            {day}
-          </div>
-        ))}
+      <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+        {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, idx) => {
+          const isWknd = idx >= 5;
+          return (
+            <div key={day} className={`py-3 text-center text-[11px] font-bold uppercase tracking-wider ${isWknd ? 'bg-slate-800 text-white' : 'text-slate-500'}`}>
+              {day}
+            </div>
+          );
+        })}
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 auto-rows-fr bg-gray-100 gap-px border-b border-gray-200">
+      <div className="grid grid-cols-7 auto-rows-fr bg-slate-200 gap-px border-b border-slate-200">
         {emptyDays.map((_, i) => (
-          <div key={`empty-${i}`} className="bg-white min-h-[120px]" />
+          <div key={`empty-${i}`} className="bg-white min-h-[110px]" />
         ))}
         
         {daysInMonth.map((day) => {
           const dayTickets = getDayTickets(day);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const isCurrentDay = isToday(day);
+          const isWknd = isWeekend(day);
 
           return (
             <div
               key={day.toISOString()}
               onClick={() => onSelectDate(day)}
-              className={`bg-white min-h-[120px] p-2 cursor-pointer transition-colors hover:bg-gray-50 relative group
-                ${isSelected ? 'bg-blue-50 ring-2 ring-inset ring-blue-500 z-10' : ''}
+              className={`bg-white min-h-[110px] p-2 cursor-pointer transition-colors hover:bg-slate-50 relative group
+                ${isWknd ? 'bg-slate-100/50' : ''}
+                ${isSelected ? 'bg-blue-50/50 ring-2 ring-inset ring-blue-500 z-10' : ''}
               `}
             >
               <div className="flex justify-between items-start mb-2">
                 <span className={`
-                  w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium
-                  ${isCurrentDay ? 'bg-blue-600 text-white' : 'text-gray-700'}
-                  ${!isSameMonth(day, currentDate) ? 'text-gray-300' : ''}
+                  w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold
+                  ${isCurrentDay ? 'bg-red-600 text-white' : (isWknd ? 'text-slate-800' : 'text-slate-700')}
+                  ${!isSameMonth(day, currentDate) ? 'text-slate-300' : ''}
                 `}>
                   {format(day, 'd')}
                 </span>
                 {dayTickets.length > 0 && (
-                  <span className="text-xs font-semibold text-gray-400">
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
                     {dayTickets.length}
                   </span>
                 )}
@@ -110,20 +115,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
               <div className="space-y-1">
                 {dayTickets.slice(0, 3).map(ticket => {
-                    const tech = technicians.find(t => ticket.technicianIds.includes(t.id));
+                    const tech = technicians.filter(t => ticket.technicianIds.includes(t.id))[0];
                     return (
                         <div 
                             key={ticket.id} 
-                            className={`text-[10px] p-1 rounded border truncate flex items-center gap-1 ${getStatusColor(ticket.status)}`}
+                            className={`text-[9px] p-1 rounded border truncate flex items-center gap-1 uppercase font-semibold ${getStatusColor(ticket.status)}`}
                         >
-                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tech?.avatarColor || 'bg-gray-400'}`} />
-                            <span className="truncate font-medium">{ticket.scheduledTime} - {ticket.customerName}</span>
+                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${tech?.avatarColor || 'bg-slate-400'}`} />
+                            <span className="truncate">{ticket.scheduledTime} - {ticket.customerName}</span>
                         </div>
                     );
                 })}
                 {dayTickets.length > 3 && (
-                  <div className="text-[10px] text-gray-500 text-center font-medium">
-                    + {dayTickets.length - 3} outros
+                  <div className="text-[9px] text-slate-400 text-center font-bold uppercase py-0.5">
+                    + {dayTickets.length - 3} mais
                   </div>
                 )}
               </div>

@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { Technician, ServiceDefinition, Visor } from '../types';
-import { X, Trash2, Plus, User, Briefcase, Check, Monitor } from 'lucide-react';
+import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -17,17 +18,17 @@ interface SettingsModalProps {
 }
 
 const COLOR_PALETTE = [
-  { name: 'Branco', class: 'bg-white' },
-  { name: 'Azul Intenso', class: 'bg-blue-300' },
-  { name: 'Esmeralda Forte', class: 'bg-emerald-300' },
-  { name: 'Âmbar Escuro', class: 'bg-amber-300' },
-  { name: 'Roxo Profundo', class: 'bg-purple-300' },
-  { name: 'Rosa Vívido', class: 'bg-pink-300' },
-  { name: 'Cinzento Sólido', class: 'bg-gray-300' },
-  { name: 'Indigo Marcado', class: 'bg-indigo-300' },
-  { name: 'Laranja Vibrante', class: 'bg-orange-300' },
-  { name: 'Ciano Profundo', class: 'bg-cyan-300' },
-  { name: 'Lima Escura', class: 'bg-lime-300' },
+  { name: 'Branco', class: 'bg-white', text: 'text-slate-900' },
+  { name: 'Azul Intenso', class: 'bg-blue-600', text: 'text-white' },
+  { name: 'Esmeralda', class: 'bg-emerald-600', text: 'text-white' },
+  { name: 'Âmbar', class: 'bg-amber-500', text: 'text-slate-900' },
+  { name: 'Roxo', class: 'bg-purple-600', text: 'text-white' },
+  { name: 'Vermelho', class: 'bg-red-600', text: 'text-white' },
+  { name: 'Cinzento Escuro', class: 'bg-slate-800', text: 'text-white' },
+  { name: 'Indigo', class: 'bg-indigo-600', text: 'text-white' },
+  { name: 'Laranja', class: 'bg-orange-500', text: 'text-white' },
+  { name: 'Ciano', class: 'bg-cyan-500', text: 'text-slate-900' },
+  { name: 'Verde Lima', class: 'bg-lime-400', text: 'text-slate-900' },
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -75,6 +76,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     });
     setNewServiceName('');
     setNewServiceDuration(1);
+    setNewServiceColor('bg-white');
   };
 
   const handleAddVisor = (e: React.FormEvent) => {
@@ -87,98 +89,112 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setNewVisorName('');
   };
 
+  const isColorDark = (colorClass: string) => {
+      const darkClasses = ['bg-blue-600', 'bg-emerald-600', 'bg-purple-600', 'bg-red-600', 'bg-slate-800', 'bg-indigo-600', 'bg-orange-500'];
+      return darkClasses.includes(colorClass);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col h-[650px]">
-        <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-xl text-gray-800 uppercase tracking-tight">Definições Operacionais</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] w-full max-w-4xl overflow-hidden flex flex-col h-[750px] border border-slate-200">
+        
+        <div className="flex justify-between items-center p-8 border-b border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-900 p-2 rounded-xl shadow-lg">
+               <Briefcase className="text-white" size={24} />
+            </div>
+            <div>
+               <h2 className="text-2xl text-slate-900 font-bold uppercase tracking-tight">Definições Operacionais</h2>
+               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Configuração de Agentes, Serviços e Logística</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-red-600 transition-all p-2 bg-white rounded-full border border-slate-200 shadow-sm">
             <X size={24} />
           </button>
         </div>
 
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-slate-200 bg-white">
           <button
             onClick={() => setActiveTab('tech')}
-            className={`flex-1 py-4 text-xs uppercase tracking-widest border-b-2 transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'tech' ? 'border-red-600 text-red-600 bg-red-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'
+            className={`flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.3em] border-b-4 transition-all flex items-center justify-center gap-3 ${
+              activeTab === 'tech' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400 hover:bg-slate-50'
             }`}
           >
-            <User size={16} /> Técnicos
+            <User size={18} /> Técnicos
           </button>
           <button
             onClick={() => setActiveTab('service')}
-            className={`flex-1 py-4 text-xs uppercase tracking-widest border-b-2 transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'service' ? 'border-red-600 text-red-600 bg-red-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'
+            className={`flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.3em] border-b-4 transition-all flex items-center justify-center gap-3 ${
+              activeTab === 'service' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400 hover:bg-slate-50'
             }`}
           >
-            <Briefcase size={16} /> Serviços
+            <Briefcase size={18} /> Serviços
           </button>
           <button
             onClick={() => setActiveTab('visor')}
-            className={`flex-1 py-4 text-xs uppercase tracking-widest border-b-2 transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'visor' ? 'border-red-600 text-red-600 bg-red-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'
+            className={`flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.3em] border-b-4 transition-all flex items-center justify-center gap-3 ${
+              activeTab === 'visor' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400 hover:bg-slate-50'
             }`}
           >
-            <Monitor size={16} /> Visores
+            <Monitor size={18} /> Visores
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+        <div className="flex-1 overflow-y-auto p-10 bg-white custom-scrollbar">
           {activeTab === 'tech' ? (
-            <div className="space-y-6">
-              <form onSubmit={handleAddTech} className="flex gap-2 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <form onSubmit={handleAddTech} className="flex gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-inner">
                 <input
                   type="text"
-                  placeholder="Nome do novo técnico..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Nome completo do técnico..."
+                  className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
                   value={newTechName}
                   onChange={(e) => setNewTechName(e.target.value)}
                 />
-                <button type="submit" className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 transition-all">
-                  <Plus size={18} /> Alocar
+                <button type="submit" className="px-10 py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 flex items-center gap-3 transition-all font-bold uppercase text-[11px] tracking-widest shadow-xl shadow-red-200 active:scale-95">
+                  <Plus size={20} /> Registar
                 </button>
               </form>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {technicians.map(tech => (
-                  <div key={tech.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm group">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-xs shadow-inner ${tech.avatarColor}`}>
+                  <div key={tech.id} className="flex items-center justify-between p-5 bg-white rounded-2xl border border-slate-200 shadow-sm group hover:border-red-300 hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${tech.avatarColor}`}>
                         {tech.name.substring(0, 2).toUpperCase()}
                       </div>
-                      <span className="text-gray-700 uppercase tracking-tight text-sm">{tech.name}</span>
+                      <span className="text-slate-900 font-bold uppercase tracking-tight text-sm">{tech.name}</span>
                     </div>
-                    <button onClick={() => onRemoveTechnician(tech.id)} className="text-gray-300 hover:text-red-500 p-2 transition-colors">
-                      <Trash2 size={18} />
+                    <button onClick={() => onRemoveTechnician(tech.id)} className="text-slate-300 hover:text-red-600 p-2 transition-all hover:bg-red-50 rounded-lg">
+                      <Trash2 size={20} />
                     </button>
                   </div>
                 ))}
               </div>
             </div>
           ) : activeTab === 'service' ? (
-            <div className="space-y-6">
-              <form onSubmit={handleAddService} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <form onSubmit={handleAddService} className="bg-slate-50 p-8 rounded-[2rem] border border-slate-200 shadow-inner space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div className="md:col-span-2">
-                    <label className="block text-[10px] text-gray-400 uppercase tracking-widest mb-1.5">Nome do Serviço</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Designação do Serviço</label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Instalação, Manutenção..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Ex: Instalação de Sistema Laser"
+                      className="w-full px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
                       value={newServiceName}
                       onChange={(e) => setNewServiceName(e.target.value)}
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-gray-400 uppercase tracking-widest mb-1.5">Tempo Médio (h)</label>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Média Horas</label>
                     <input
                       type="number"
                       min="0.5"
                       step="0.5"
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                      className="w-full px-6 py-4 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
                       value={newServiceDuration}
                       onChange={(e) => setNewServiceDuration(Number(e.target.value))}
                     />
@@ -186,67 +202,80 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 
                 <div>
-                  <label className="block text-[10px] text-gray-400 uppercase tracking-widest mb-1.5">Cor do Cartão</label>
-                  <div className="flex flex-wrap gap-2">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Cor Identificativa na Agenda</label>
+                  <div className="flex flex-wrap gap-3">
                     {COLOR_PALETTE.map(color => (
                       <button
                         key={color.class}
                         type="button"
                         onClick={() => setNewServiceColor(color.class)}
-                        className={`w-10 h-10 rounded-lg border-2 transition-all flex items-center justify-center ${color.class} ${newServiceColor === color.class ? 'border-red-600 ring-2 ring-red-100' : 'border-gray-200 hover:border-gray-300'}`}
-                        title={color.name}
+                        className={`w-14 h-14 rounded-2xl border-4 transition-all flex items-center justify-center shadow-md ${color.class} ${newServiceColor === color.class ? 'border-red-600 ring-4 ring-red-50 scale-110' : 'border-white hover:border-slate-300'}`}
                       >
-                        {newServiceColor === color.class && <Check size={16} className="text-gray-900" />}
+                        {newServiceColor === color.class && <Check size={24} className={color.text} />}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2">
-                    <button type="submit" className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 uppercase tracking-widest text-xs flex items-center gap-2 transition-all shadow-lg">
-                        <Plus size={18} /> Registar Tipo de Serviço
+                <div className="flex justify-end border-t border-slate-200 pt-6">
+                    <button type="submit" className="px-12 py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 uppercase tracking-[0.2em] text-[11px] font-bold flex items-center gap-3 transition-all shadow-2xl shadow-red-200 active:scale-95">
+                        <Plus size={20} /> Criar Novo Serviço
                     </button>
                 </div>
               </form>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
-                {services.map(service => (
-                  <div key={service.id} className={`flex items-center justify-between p-4 rounded-xl border border-gray-300 shadow-sm transition-all ${service.colorClass}`}>
-                    <div className="flex flex-col">
-                      <span className="text-gray-900 uppercase tracking-tight text-sm">{service.name}</span>
-                      <span className="text-[10px] text-gray-800 uppercase">{service.defaultDuration} horas</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
+                {services.map(service => {
+                  const isDark = isColorDark(service.colorClass);
+                  return (
+                    <div key={service.id} className={`flex items-center justify-between p-6 rounded-[1.5rem] border-2 shadow-md transition-all ${service.colorClass} ${isDark ? 'border-transparent' : 'border-slate-100'}`}>
+                      <div className="flex flex-col">
+                        <span className={`font-bold uppercase tracking-widest text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{service.name}</span>
+                        <span className={`text-[10px] font-bold uppercase opacity-80 flex items-center gap-2 mt-1 ${isDark ? 'text-white' : 'text-slate-500'}`}>
+                            <Clock size={12} /> {service.defaultDuration} horas estimadas
+                        </span>
+                      </div>
+                      <button onClick={() => onRemoveService(service.id)} className={`p-3 rounded-xl transition-all ${isDark ? 'text-white/40 hover:text-white hover:bg-white/20' : 'text-slate-300 hover:text-red-600 hover:bg-red-50'}`}>
+                        <Trash2 size={22} />
+                      </button>
                     </div>
-                    <button onClick={() => onRemoveService(service.id)} className="text-gray-600 hover:text-red-700 p-2 transition-colors">
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              <form onSubmit={handleAddVisor} className="flex gap-2 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100 flex items-start gap-4 mb-4">
+                 <Info className="text-blue-500 shrink-0 mt-1" size={20} />
+                 <p className="text-xs text-blue-700 font-medium leading-relaxed">
+                    Os visores registados aqui ficarão disponíveis para seleção exclusiva em serviços do tipo <strong>"Reconstrução"</strong>. Estes dados são vitais para o relatório de picking de armazém.
+                 </p>
+              </div>
+
+              <form onSubmit={handleAddVisor} className="flex gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-inner">
                 <input
                   type="text"
-                  placeholder="Nome do novo visor..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Código ou Nome do Visor (Ex: Visor LED G5)..."
+                  className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
                   value={newVisorName}
                   onChange={(e) => setNewVisorName(e.target.value)}
                 />
-                <button type="submit" className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 transition-all">
-                  <Plus size={18} /> Adicionar Visor
+                <button type="submit" className="px-10 py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 flex items-center gap-3 transition-all font-bold uppercase text-[11px] tracking-widest shadow-xl shadow-red-200 active:scale-95">
+                  <Plus size={20} /> Adicionar
                 </button>
               </form>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {visores.map(visor => (
-                  <div key={visor.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm group">
-                    <div className="flex items-center gap-3">
-                      <Monitor className="text-blue-500" size={20} />
-                      <span className="text-gray-700 uppercase tracking-tight text-sm">{visor.name}</span>
+                  <div key={visor.id} className="flex items-center justify-between p-5 bg-white rounded-2xl border border-slate-200 shadow-sm group hover:border-blue-300 hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-blue-600 p-3 rounded-xl text-white shadow-md">
+                        <Monitor size={20} />
+                      </div>
+                      <span className="text-slate-900 font-bold uppercase tracking-tight text-sm">{visor.name}</span>
                     </div>
-                    <button onClick={() => onRemoveVisor(visor.id)} className="text-gray-300 hover:text-red-500 p-2 transition-colors">
-                      <Trash2 size={18} />
+                    <button onClick={() => onRemoveVisor(visor.id)} className="text-slate-300 hover:text-red-600 p-2 transition-all hover:bg-red-50 rounded-lg">
+                      <Trash2 size={20} />
                     </button>
                   </div>
                 ))}

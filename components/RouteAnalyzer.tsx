@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Ticket, RouteAnalysis, Technician, DayStatus } from '../types';
 import { analyzeRoute } from '../services/geminiService';
@@ -115,13 +116,14 @@ export const RouteAnalyzer: React.FC<RouteAnalyzerProps> = ({
             ))}
           </div>
           
-          <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-            <div className="flex gap-2">
-                {analysis.groundingUrls.length > 0 && (
-                  <a href={analysis.groundingUrls[0]} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] text-blue-700 hover:underline uppercase font-normal">
-                    <ExternalLink size={10} /> Google Maps
+          <div className="flex flex-wrap justify-between items-center pt-2 border-t border-gray-100 gap-2">
+            <div className="flex flex-wrap gap-2">
+                {/* Fixed: Iterate through all grounding URLs to display them as links as required */}
+                {analysis.groundingUrls.map((url, idx) => (
+                  <a key={idx} href={url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] text-blue-700 hover:underline uppercase font-normal">
+                    <ExternalLink size={10} /> Maps {analysis.groundingUrls.length > 1 ? idx + 1 : ''}
                   </a>
-                )}
+                ))}
             </div>
             <button onClick={() => setAnalysis(null)} className="text-[10px] text-gray-500 hover:text-red-600 uppercase underline font-normal">Limpar Análise</button>
           </div>

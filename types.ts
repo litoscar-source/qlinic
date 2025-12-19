@@ -1,3 +1,4 @@
+
 export enum VehicleType {
   CARRO = 'Carro Ligeiro',
   CARRINHA = 'Carrinha Comercial',
@@ -72,6 +73,7 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'technician' | 'viewer';
+  technicianId?: string; // ID associado se for perfil técnico
 }
 
 export interface DayStatus {

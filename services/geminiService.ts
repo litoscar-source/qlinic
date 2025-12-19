@@ -70,18 +70,20 @@ export const analyzeRoute = async (
   `;
 
   try {
+    // Fix: Using 'gemini-2.5-flash' which is optimized for maps grounding tasks
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash", // Maps grounding is only supported in Gemini 2.5 series
+      model: "gemini-2.5-flash", 
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
       },
     });
 
-    // Directly access the text property as per the SDK rules
+    // Directly access the text property as per the SDK rules (property, not method)
     let jsonText = response.text;
     if (!jsonText) throw new Error("Sem resposta da IA");
 
+    // Remove markdown code blocks if present to ensure clean JSON parsing
     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     let data;
@@ -96,15 +98,22 @@ export const analyzeRoute = async (
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
         chunks.forEach((chunk: any) => {
+            // Extract URL from maps object as required by Google Maps grounding guidelines
             if (chunk.maps?.uri) {
                 groundingUrls.push(chunk.maps.uri);
+            }
+            // Extract URLs from review snippets if they exist
+            if (chunk.maps?.placeAnswerSources?.reviewSnippets) {
+                chunk.maps.placeAnswerSources.reviewSnippets.forEach((snippet: any) => {
+                   if (snippet.uri) groundingUrls.push(snippet.uri);
+                });
             }
         });
     }
 
     return {
         ...data,
-        groundingUrls
+        groundingUrls: Array.from(new Set(groundingUrls)) // Remove duplicates
     };
 
   } catch (error) {

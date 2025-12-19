@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo } from 'react';
-import { Ticket, DayStatus, Technician, ServiceDefinition } from '../types';
-import { X, Download, PieChart, TrendingUp, Calendar, Users, Moon, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, isSameMonth, isSameDay, isSameWeek, subYears, addMonths, subMonths } from 'date-fns';
+import { Ticket, DayStatus, Technician, ServiceDefinition, Visor } from '../types';
+import { X, Download, PieChart, TrendingUp, Calendar, Users, Moon, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Printer, Monitor } from 'lucide-react';
+import { format, isSameMonth, isSameDay, isSameWeek, subYears, addMonths, subMonths, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
 interface ReportsModalProps {
@@ -11,6 +12,7 @@ interface ReportsModalProps {
   dayStatuses: DayStatus[];
   technicians: Technician[];
   services: ServiceDefinition[];
+  visores?: Visor[];
 }
 
 type PeriodType = 'daily' | 'weekly' | 'monthly';
@@ -21,10 +23,14 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
   tickets,
   dayStatuses,
   technicians,
-  services
+  services,
+  visores = []
 }) => {
+  const [activeView, setActiveView] = useState<'kpi' | 'visores'>('kpi');
   const [period, setPeriod] = useState<PeriodType>('monthly');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [startDate, setStartDate] = useState(format(subMonths(new Date(), 1), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedTechId, setSelectedTechId] = useState<string | null>(null);
 
   const filteredData = useMemo(() => {
@@ -41,23 +47,22 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
     });
   }, [tickets, period, selectedDate, selectedTechId, isOpen]);
 
-  const lastYearData = useMemo(() => {
-    if (!isOpen) return [];
-    const lastYearDate = subYears(selectedDate, 1);
-    return tickets.filter(t => {
-      const matchTech = !selectedTechId || t.technicianIds.includes(selectedTechId);
-      let matchTime = false;
+  // Lógica específica para o Relatório de Visores (entre datas)
+  const visorReportData = useMemo(() => {
+      if (!isOpen) return [];
+      const start = startOfDay(new Date(startDate));
+      const end = endOfDay(new Date(endDate));
       
-      if (period === 'daily') matchTime = isSameDay(t.date, lastYearDate);
-      else if (period === 'weekly') matchTime = isSameWeek(t.date, lastYearDate, { weekStartsOn: 1 });
-      else matchTime = isSameMonth(t.date, lastYearDate);
-      
-      return matchTech && matchTime;
-    });
-  }, [tickets, period, selectedDate, selectedTechId, isOpen]);
+      return tickets.filter(t => {
+          const service = services.find(s => s.id === t.serviceId);
+          const isRecon = service?.name.toLowerCase().includes('reconstrução');
+          const inDate = isWithinInterval(new Date(t.date), { start, end });
+          return isRecon && inDate && t.visorId;
+      }).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [tickets, services, startDate, endDate, isOpen]);
 
   const kpis = useMemo(() => {
-    if (!isOpen) return { totalServices: 0, totalDuration: 0, totalTravelTime: 0, overnights: 0, avgDuration: 0, lyTotal: 0, diffTotal: 0 };
+    if (!isOpen) return { totalServices: 0, totalDuration: 0, totalTravelTime: 0, overnights: 0, avgDuration: 0 };
     
     const totalServices = filteredData.length;
     const totalDuration = filteredData.reduce((acc, t) => acc + t.duration, 0);
@@ -72,19 +77,14 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
       return matchTech && matchTime && ds.isOvernight;
     }).length;
 
-    const lyTotal = lastYearData.length;
-    const diffTotal = lyTotal > 0 ? ((totalServices - lyTotal) / lyTotal) * 100 : 0;
-
     return {
       totalServices,
       totalDuration,
       totalTravelTime,
       overnights,
       avgDuration: totalServices > 0 ? totalDuration / totalServices : 0,
-      lyTotal,
-      diffTotal
     };
-  }, [filteredData, lastYearData, dayStatuses, period, selectedDate, selectedTechId, isOpen]);
+  }, [filteredData, dayStatuses, period, selectedDate, selectedTechId, isOpen]);
 
   const serviceTypeStats = useMemo(() => {
     if (!isOpen) return [];
@@ -102,216 +102,242 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
   const handlePrevMonth = () => setSelectedDate(prev => subMonths(prev, 1));
   const handleNextMonth = () => setSelectedDate(prev => addMonths(prev, 1));
 
-  if (!isOpen) return null;
+  const printVisorReport = () => {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return;
 
-  const downloadCSV = () => {
-    const headers = ["Data", "Tecnico", "Ticket", "Cliente", "Serviço", "Duração Cliente(h)", "Viagem Estimada(min)"];
-    const rows = filteredData.map(t => [
-      format(t.date, 'yyyy-MM-dd'),
-      technicians.filter(tech => t.technicianIds.includes(tech.id)).map(tech => tech.name).join(';'),
-      t.ticketNumber,
-      `"${t.customerName}"`,
-      services.find(s => s.id === t.serviceId)?.name || 'N/A',
-      t.duration,
-      t.travelTimeMinutes || 30
-    ]);
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
-    const link = document.createElement("a");
-    link.href = encodeURI(csvContent);
-    link.download = `relatorio_kpi_${period}_${format(selectedDate, 'yyyyMMdd')}.csv`;
-    link.click();
+      const visorHtmlRows = visorReportData.map(t => {
+          const visor = visores.find(v => v.id === t.visorId);
+          const techs = technicians.filter(tech => t.technicianIds.includes(tech.id)).map(te => te.name).join(', ');
+          return `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 12px; font-size: 12px;">${format(new Date(t.date), 'dd/MM/yyyy')}</td>
+                <td style="padding: 12px; font-size: 12px; font-weight: bold;">${t.customerName}</td>
+                <td style="padding: 12px; font-size: 12px; color: #d32f2f;">${t.ticketNumber}</td>
+                <td style="padding: 12px; font-size: 12px; background: #fff8e1; font-weight: bold;">${visor?.name || '---'}</td>
+                <td style="padding: 12px; font-size: 11px; color: #666;">${techs}</td>
+            </tr>
+          `;
+      }).join('');
+
+      printWindow.document.write(`
+        <html>
+            <head>
+                <title>Relatório de Picking - Visores</title>
+                <style>
+                    body { font-family: sans-serif; padding: 40px; }
+                    h1 { color: #d32f2f; margin-bottom: 5px; }
+                    .header { border-bottom: 2px solid #d32f2f; margin-bottom: 20px; padding-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background: #f5f5f5; text-align: left; padding: 12px; font-size: 10px; text-transform: uppercase; color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>REQUISIÇÃO DE VISORES</h1>
+                    <p style="margin: 0; color: #666;">Período: ${format(new Date(startDate), 'dd/MM/yyyy')} a ${format(new Date(endDate), 'dd/MM/yyyy')}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Cliente</th>
+                            <th>Ticket</th>
+                            <th>Visor / Equipamento</th>
+                            <th>Técnicos Alocados</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${visorHtmlRows || '<tr><td colspan="5" style="text-align:center; padding: 40px;">Sem reconstruções agendadas para este período.</td></tr>'}
+                    </tbody>
+                </table>
+                <p style="margin-top: 40px; font-size: 10px; color: #999; text-align: center;">Gerado por Qlinic Dispatch Pro em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+            </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col h-[90vh]">
-        <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg shadow-lg">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col h-[90vh] border border-slate-200">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="bg-red-600 p-2.5 rounded-2xl shadow-lg shadow-red-200">
                 <PieChart className="text-white" size={24} />
             </div>
             <div>
-                <h2 className="text-xl text-gray-800">Relatórios e KPIs</h2>
-                <p className="text-xs text-gray-500 font-medium">Análise de performance e logística</p>
+                <h2 className="text-xl text-slate-900 font-bold uppercase tracking-tight">Centro de Relatórios</h2>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Performance & Logística</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-red-600 transition-all p-2 bg-white rounded-full border border-slate-200">
             <X size={24} />
           </button>
         </div>
 
-        <div className="px-6 py-4 bg-white border-b border-gray-100 flex flex-wrap items-center gap-4 shrink-0">
-            <div className="flex bg-gray-100 p-1 rounded-lg">
-                {(['daily', 'weekly', 'monthly'] as PeriodType[]).map(p => (
-                    <button
-                        key={p}
-                        onClick={() => setPeriod(p)}
-                        className={`px-4 py-1.5 rounded-md text-xs transition-all ${period === p ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
-                    >
-                        {p === 'daily' ? 'Diário' : p === 'weekly' ? 'Semanal' : 'Mensal'}
-                    </button>
-                ))}
-            </div>
-
-            <div className="flex items-center gap-2 border-l border-gray-200 pl-4">
-                <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-lg text-gray-500"><ChevronLeft size={16}/></button>
-                <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-gray-400" />
-                    <input 
-                        type="month" 
-                        value={format(selectedDate, 'yyyy-MM')} 
-                        onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                        className="text-sm outline-none border-none bg-transparent font-medium uppercase"
-                    />
-                </div>
-                <button onClick={handleNextMonth} className="p-1 hover:bg-gray-100 rounded-lg text-gray-500"><ChevronRight size={16}/></button>
-            </div>
-
-            <div className="flex items-center gap-2 border-l border-gray-200 pl-4">
-                <Users size={16} className="text-gray-400" />
-                <select 
-                    value={selectedTechId || ''} 
-                    onChange={(e) => setSelectedTechId(e.target.value || null)}
-                    className="text-sm outline-none border-none bg-transparent"
-                >
-                    <option value="">Todos os Técnicos</option>
-                    {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-            </div>
-
-            <button onClick={downloadCSV} className="ml-auto flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 text-xs transition-all shadow-md">
-                <Download size={16} /> Exportar CSV
-            </button>
+        <div className="flex border-b border-slate-200 bg-white">
+            <button onClick={() => setActiveView('kpi')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all border-b-4 ${activeView === 'kpi' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400'}`}>Indicadores KPI</button>
+            <button onClick={() => setActiveView('visores')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all border-b-4 ${activeView === 'visores' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400'}`}>Logística de Visores</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-start mb-2">
-                        <p className="text-xs text-gray-400 uppercase tracking-wider">Total Serviços</p>
-                        {kpis.diffTotal !== 0 && (
-                            <span className={`flex items-center text-[10px] px-1.5 py-0.5 rounded ${kpis.diffTotal > 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                {kpis.diffTotal > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                                {Math.abs(Math.round(kpis.diffTotal))}% (v LY)
-                            </span>
-                        )}
-                    </div>
-                    <p className="text-3xl text-gray-800">{kpis.totalServices}</p>
-                    <p className="text-[10px] text-gray-400 mt-1 uppercase">V Ano Anterior: {kpis.lyTotal}</p>
+        {activeView === 'kpi' ? (
+          <>
+            <div className="px-6 py-4 bg-white border-b border-slate-100 flex flex-wrap items-center gap-4 shrink-0">
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                    {(['daily', 'weekly', 'monthly'] as PeriodType[]).map(p => (
+                        <button key={p} onClick={() => setPeriod(p)} className={`px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${period === p ? 'bg-white text-red-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>{p === 'daily' ? 'Dia' : p === 'weekly' ? 'Semana' : 'Mês'}</button>
+                    ))}
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Tempo em Clientes</p>
-                    <div className="flex items-end gap-2">
-                        <p className="text-3xl text-blue-600">{Math.round(kpis.totalDuration)}</p>
-                        <span className="text-sm text-gray-400 mb-1">horas</span>
+                <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
+                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronLeft size={16}/></button>
+                    <div className="flex items-center gap-2">
+                        <Calendar size={16} className="text-slate-400" />
+                        <input type="month" value={format(selectedDate, 'yyyy-MM')} onChange={(e) => setSelectedDate(new Date(e.target.value))} className="text-[11px] font-bold uppercase outline-none bg-transparent" />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 uppercase">Média: {kpis.avgDuration.toFixed(1)}h / serviço</p>
+                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><ChevronRight size={16}/></button>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Tempo em Viagem</p>
-                    <div className="flex items-end gap-2">
-                        <p className="text-3xl text-indigo-600">{kpis.totalTravelTime.toFixed(1)}</p>
-                        <span className="text-sm text-gray-400 mb-1">horas</span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-1 uppercase">Estimativa AI</p>
+                <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
+                    <Users size={16} className="text-slate-400" />
+                    <select value={selectedTechId || ''} onChange={(e) => setSelectedTechId(e.target.value || null)} className="text-[11px] font-bold uppercase outline-none bg-transparent">
+                        <option value="">Equipa Completa</option>
+                        {technicians.map(t => <option key={t.id} value={t.id}>{t.name.toUpperCase()}</option>)}
+                    </select>
                 </div>
+            </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Noites Fora</p>
-                    <div className="flex items-center gap-3">
-                        <p className="text-3xl text-orange-600">{kpis.overnights}</p>
-                        <div className="bg-orange-50 p-1.5 rounded-lg">
-                            <Moon size={20} className="text-orange-500" />
+            <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                        <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-2">Total Serviços</p>
+                        <p className="text-4xl text-slate-900 font-bold">{kpis.totalServices}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                        <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-2">Horas em Cliente</p>
+                        <p className="text-4xl text-red-600 font-bold">{Math.round(kpis.totalDuration)}h</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                        <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-2">Viagem Estimada</p>
+                        <p className="text-4xl text-blue-600 font-bold">{kpis.totalTravelTime.toFixed(1)}h</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                        <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest mb-2">Dormidas Fora</p>
+                        <div className="flex items-center gap-3">
+                            <p className="text-4xl text-orange-500 font-bold">{kpis.overnights}</p>
+                            <Moon className="text-orange-300" size={24} />
                         </div>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 uppercase">Dormidas registadas</p>
                 </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <h3 className="text-gray-800 mb-6 flex items-center gap-2">
-                        <TrendingUp size={18} className="text-blue-500" />
-                        Produtividade por Tipo de Serviço
-                    </h3>
-                    <div className="space-y-5">
-                        {serviceTypeStats.map(([name, stat]) => {
-                            const percent = kpis.totalServices > 0 ? (stat.count / kpis.totalServices) * 100 : 0;
-                            return (
-                                <div key={name}>
-                                    <div className="flex justify-between text-sm mb-1.5">
-                                        <span className="text-gray-700 uppercase tracking-tight text-xs">{name}</span>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-gray-400 text-[10px] uppercase">{stat.hours}h totais</span>
-                                            <span className="text-gray-900 font-medium">{stat.count}</span>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                        <h3 className="text-slate-900 font-bold uppercase text-[11px] tracking-widest mb-8 flex items-center gap-3">
+                            <TrendingUp size={18} className="text-red-600" /> Distribuição de Serviços
+                        </h3>
+                        <div className="space-y-6">
+                            {serviceTypeStats.map(([name, stat]) => {
+                                const percent = kpis.totalServices > 0 ? (stat.count / kpis.totalServices) * 100 : 0;
+                                return (
+                                    <div key={name}>
+                                        <div className="flex justify-between text-sm mb-2">
+                                            <span className="text-slate-800 font-bold uppercase text-[10px] tracking-tight">{name}</span>
+                                            <span className="text-slate-400 font-bold text-[10px]">{stat.count} ({Math.round(percent)}%)</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
+                                            <div className="bg-red-600 h-full rounded-full transition-all duration-1000" style={{ width: `${percent}%` }} />
                                         </div>
                                     </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                        <div 
-                                            className="bg-blue-600 h-full rounded-full transition-all duration-1000" 
-                                            style={{ width: `${percent}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        {serviceTypeStats.length === 0 && (
-                            <div className="text-center py-10 text-gray-400 italic text-sm">Nenhum dado para este período.</div>
-                        )}
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <h3 className="text-gray-800 mb-6 flex items-center gap-2">
-                        <Users size={18} className="text-blue-500" />
-                        Performance Individual (No Período)
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-left border-b border-gray-100 text-gray-400 uppercase text-[10px] tracking-wider">
-                                    <th className="pb-3">Técnico</th>
-                                    <th className="pb-3 text-center">Serviços</th>
-                                    <th className="pb-3 text-center">Horas</th>
-                                    <th className="pb-3 text-center">Noites</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {technicians.map(tech => {
-                                    const techTickets = filteredData.filter(t => t.technicianIds.includes(tech.id));
-                                    const tHours = techTickets.reduce((acc, t) => acc + t.duration, 0);
-                                    const tOvernights = dayStatuses.filter(ds => {
-                                        let matchTime = false;
-                                        if (period === 'daily') matchTime = isSameDay(ds.date, selectedDate);
-                                        else if (period === 'weekly') matchTime = isSameWeek(ds.date, selectedDate, { weekStartsOn: 1 });
-                                        else matchTime = isSameMonth(ds.date, selectedDate);
-                                        return ds.technicianId === tech.id && matchTime && ds.isOvernight;
-                                    }).length;
-
-                                    return (
-                                        <tr key={tech.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`w-6 h-6 rounded-full ${tech.avatarColor} text-[8px] flex items-center justify-center text-white`}>
-                                                        {tech.name.substring(0,2).toUpperCase()}
-                                                    </div>
-                                                    <span className="text-gray-700 uppercase tracking-tight text-xs">{tech.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3 text-center text-gray-800">{techTickets.length}</td>
-                                            <td className="py-3 text-center text-blue-600">{tHours.toFixed(1)}h</td>
-                                            <td className="py-3 text-center text-orange-600">{tOvernights}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                        <h3 className="text-slate-900 font-bold uppercase text-[11px] tracking-widest mb-8 flex items-center gap-3">
+                            <Users size={18} className="text-blue-600" /> Ranking de Performance
+                        </h3>
+                        <div className="space-y-4">
+                            {technicians.map(tech => {
+                                const tTickets = filteredData.filter(t => t.technicianIds.includes(tech.id)).length;
+                                return (
+                                    <div key={tech.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-2xl">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-full ${tech.avatarColor} text-[10px] flex items-center justify-center text-white font-bold`}>{tech.name.substring(0,2).toUpperCase()}</div>
+                                            <span className="text-slate-800 font-bold text-xs uppercase">{tech.name}</span>
+                                        </div>
+                                        <span className="text-slate-900 font-bold text-xs">{tTickets} Op.</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col bg-slate-50/50 p-8 overflow-hidden">
+             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm mb-6 flex items-center gap-6">
+                <div className="flex flex-col">
+                   <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Data Início</label>
+                   <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 font-bold text-xs outline-none focus:ring-4 focus:ring-red-100" />
+                </div>
+                <div className="flex flex-col">
+                   <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Data Fim</label>
+                   <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 font-bold text-xs outline-none focus:ring-4 focus:ring-red-100" />
+                </div>
+                <button onClick={printVisorReport} className="ml-auto bg-red-600 text-white px-8 py-3 rounded-2xl hover:bg-red-700 transition-all shadow-xl shadow-red-100 font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
+                    <Printer size={16} /> Imprimir Lista de Picking
+                </button>
+             </div>
+
+             <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <Monitor size={14} className="text-red-600" /> Visores para Reconstruções ({visorReportData.length})
+                    </h4>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                   <table className="w-full text-left">
+                      <thead className="bg-slate-50 sticky top-0">
+                         <tr>
+                            <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Data</th>
+                            <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Cliente</th>
+                            <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Ticket</th>
+                            <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Equipamento (Visor)</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                         {visorReportData.map(t => {
+                            const visor = visores.find(v => v.id === t.visorId);
+                            return (
+                               <tr key={t.id} className="hover:bg-red-50/30 transition-colors">
+                                  <td className="px-6 py-4 text-xs font-bold text-slate-500">{format(new Date(t.date), 'dd/MM/yyyy')}</td>
+                                  <td className="px-6 py-4 text-xs font-bold text-slate-900 uppercase tracking-tight">{t.customerName}</td>
+                                  <td className="px-6 py-4 text-xs font-bold text-red-600">{t.ticketNumber}</td>
+                                  <td className="px-6 py-4">
+                                     <span className="bg-amber-100 text-amber-900 px-3 py-1 rounded-lg text-[10px] font-bold uppercase border border-amber-200 shadow-sm">
+                                        {visor?.name || 'Indefinido'}
+                                     </span>
+                                  </td>
+                               </tr>
+                            );
+                         })}
+                         {visorReportData.length === 0 && (
+                            <tr>
+                               <td colSpan={4} className="px-6 py-20 text-center text-slate-400 italic font-bold uppercase tracking-widest text-[10px]">Sem dados para o intervalo selecionado.</td>
+                            </tr>
+                         )}
+                      </tbody>
+                   </table>
+                </div>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );

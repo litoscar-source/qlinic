@@ -1,12 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { Technician, Ticket, VehicleType, TicketStatus, ServiceDefinition, Visor } from '../types';
-import { X, Save, MapPin, Hash, User, Clock, Users, Wrench, Trash2, FileText, AlertCircle, Monitor } from 'lucide-react';
+import { X, Save, MapPin, Clock, Users, Wrench, Trash2, AlertCircle, Monitor, Calendar, FileText, Info } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface TicketFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (ticket: Omit<Ticket, 'id'>) => void;
   onDelete?: (ticketId: string) => void;
+  onUpdate?: (id: string, updates: Partial<Ticket>) => void;
   technicians: Technician[];
   services: ServiceDefinition[];
   visores: Visor[];
@@ -21,6 +24,7 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
   onClose,
   onSave,
   onDelete,
+  onUpdate,
   technicians,
   services,
   visores,
@@ -39,6 +43,7 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
     visorId: '',
     status: TicketStatus.NAO_CONFIRMADO,
     scheduledTime: '09:00',
+    date: '',
     duration: 1,
     notes: '',
     locality: '',
@@ -59,6 +64,7 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                 visorId: ticketToEdit.visorId || '',
                 status: ticketToEdit.status,
                 scheduledTime: ticketToEdit.scheduledTime,
+                date: format(ticketToEdit.date, 'yyyy-MM-dd'),
                 duration: ticketToEdit.duration,
                 notes: ticketToEdit.notes || '',
                 locality: ticketToEdit.locality || '',
@@ -67,7 +73,6 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
             });
         } else {
             const defaultService = services[0];
-            
             setFormData({
                 technicianIds: selectedTechId ? [selectedTechId] : (technicians[0] ? [technicians[0].id] : []),
                 ticketNumber: '',
@@ -78,6 +83,7 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                 visorId: '',
                 status: TicketStatus.NAO_CONFIRMADO,
                 scheduledTime: '09:00',
+                date: format(initialDate, 'yyyy-MM-dd'),
                 duration: defaultService ? defaultService.defaultDuration : 1,
                 notes: '',
                 locality: '',
@@ -86,7 +92,12 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
             });
         }
     }
-  }, [isOpen, selectedTechId, technicians, services, ticketToEdit]);
+  }, [isOpen, selectedTechId, technicians, services, ticketToEdit, initialDate]);
+
+  const handleQuickStatus = (status: TicketStatus) => {
+    if (isReadOnly) return;
+    setFormData(prev => ({ ...prev, status }));
+  };
 
   const handleServiceChange = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
@@ -105,303 +116,221 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
   const toggleTechnician = (techId: string) => {
     if (isReadOnly) return;
     setFormData(prev => {
-        const current = prev.technicianIds;
-        if (current.includes(techId)) {
-            if (current.length === 1) return prev;
-            return { ...prev, technicianIds: current.filter(id => id !== techId) };
-        } else {
-            return { ...prev, technicianIds: [...current, techId] };
-        }
+        const cur = prev.technicianIds;
+        if (cur.includes(techId)) {
+            if (cur.length === 1) return prev;
+            return { ...prev, technicianIds: cur.filter(id => id !== techId) };
+        } else return { ...prev, technicianIds: [...cur, techId] };
     });
   };
-
-  const handleDelete = () => {
-      if (ticketToEdit && onDelete && window.confirm("Tem a certeza que deseja eliminar este serviço?")) {
-          onDelete(ticketToEdit.id);
-          onClose();
-      }
-  };
-
-  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isReadOnly) return;
-    
-    const finalData = {
+    onSave({
         ...formData,
-        visorId: isReconstruction ? formData.visorId : undefined,
-        date: ticketToEdit ? ticketToEdit.date : initialDate
-    };
-    
-    onSave(finalData);
+        date: new Date(formData.date + 'T00:00:00'),
+        visorId: isReconstruction ? formData.visorId : undefined
+    });
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50 shrink-0">
-          <h2 className="text-xl text-gray-800 flex items-center gap-2">
-            <Wrench className="text-blue-600" size={24} />
-            {ticketToEdit ? (isReadOnly ? 'Detalhes do Serviço' : 'Editar Serviço') : 'Novo Serviço'}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={24} />
-          </button>
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] border border-slate-300">
+        
+        <div className="bg-slate-50 border-b border-slate-200 shrink-0">
+          <div className="flex justify-between items-center px-8 py-5">
+            <div className="flex items-center gap-3">
+                <div className="bg-red-600 p-2 rounded-xl shadow-lg shadow-red-100">
+                    <Wrench className="text-white" size={24} />
+                </div>
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">
+                        {ticketToEdit ? 'Editar Intervenção Técnica' : 'Novo Agendamento Operacional'}
+                    </h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">{ticketToEdit ? `REGISTO #${ticketToEdit.ticketNumber}` : 'CRIAÇÃO DE NOVA ORDEM DE SERVIÇO'}</p>
+                </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-white hover:text-red-600 rounded-full text-slate-400 transition-all border border-transparent hover:border-slate-200 shadow-sm"><X size={24} /></button>
+          </div>
+          
+          <div className="flex bg-white px-8 py-4 border-b border-slate-100 gap-3 items-center overflow-x-auto no-scrollbar">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mr-4 flex items-center gap-2">
+                <Info size={14} className="text-blue-500" /> Estado Atual
+              </span>
+              {[TicketStatus.NAO_CONFIRMADO, TicketStatus.CONFIRMADO, TicketStatus.PARCIALMENTE_RESOLVIDO, TicketStatus.RESOLVIDO].map(st => (
+                  <button key={st} type="button" onClick={() => handleQuickStatus(st)}
+                    className={`px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border-2 transition-all whitespace-nowrap ${
+                        formData.status === st 
+                        ? 'bg-red-600 text-white border-red-700 shadow-md ring-4 ring-red-50' 
+                        : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-slate-300 hover:text-slate-600'
+                    }`}>
+                      {st}
+                  </button>
+              ))}
+          </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
-          <div>
-            <label className="block text-sm text-gray-700 mb-2 flex items-center gap-2">
-                <Users size={16} />
-                Técnicos Alocados
-            </label>
-            {technicians.length === 0 ? (
-                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">
-                    Aviso: Não há técnicos registados.
+        <form onSubmit={handleSubmit} className="flex-1 p-8 overflow-y-auto custom-scrollbar font-sans antialiased text-slate-800">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            {/* Coluna Esquerda: Logística e Equipa */}
+            <div className="space-y-8">
+                <div className="space-y-4">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2 border-b border-slate-100 pb-2">
+                        <Clock size={14} className="text-red-600" /> Agendamento Temporal
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200 shadow-sm focus-within:border-red-400 transition-all">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Data da Intervenção</label>
+                            <input type="date" required disabled={isReadOnly} value={formData.date}
+                                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                                className="w-full bg-transparent outline-none font-bold text-slate-900 text-lg" />
+                        </div>
+                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200 shadow-sm focus-within:border-red-400 transition-all">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Hora de Início</label>
+                            <input type="time" required disabled={isReadOnly} value={formData.scheduledTime}
+                              onChange={(e) => setFormData({...formData, scheduledTime: e.target.value})}
+                              className="w-full bg-transparent outline-none font-bold text-slate-900 text-lg" />
+                        </div>
+                    </div>
                 </div>
-            ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {technicians.map(t => {
-                        const isSelected = formData.technicianIds.includes(t.id);
-                        return (
-                            <button
-                                key={t.id}
-                                type="button"
-                                disabled={isReadOnly}
-                                onClick={() => toggleTechnician(t.id)}
-                                className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
-                                    isSelected 
-                                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                                    : 'border-gray-200 text-gray-600'
-                                } ${!isReadOnly ? 'hover:border-blue-300' : 'cursor-default'}`}
-                            >
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] ${t.avatarColor}`}>
-                                    {t.name.substring(0,2).toUpperCase()}
-                                </div>
-                                <span className="text-sm truncate">{t.name}</span>
-                                {isSelected && <div className="ml-auto w-2 h-2 rounded-full bg-blue-500" />}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div>
-                <label className="block text-sm text-gray-700 mb-1">Tipo de Serviço</label>
-                <select
-                    disabled={isReadOnly}
-                    value={formData.serviceId}
-                    onChange={(e) => handleServiceChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                >
-                    {services.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.defaultDuration}h)</option>
-                    ))}
-                </select>
-             </div>
-             
-             {isReconstruction ? (
-                <div>
-                   <label className="block text-sm text-gray-700 mb-1 flex items-center gap-1.5">
-                       <Monitor size={14} /> Tipo de Visor
-                   </label>
-                   <select
-                       required={isReconstruction}
-                       disabled={isReadOnly}
-                       value={formData.visorId}
-                       onChange={(e) => setFormData({...formData, visorId: e.target.value})}
-                       className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                   >
-                       <option value="">Selecione um visor...</option>
-                       {visores.map(v => (
-                           <option key={v.id} value={v.id}>{v.name}</option>
-                       ))}
-                   </select>
+                <div className="space-y-4">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2 border-b border-slate-100 pb-2">
+                        <Users size={14} className="text-blue-600" /> Equipa Técnica Alocada
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                        {technicians.map(t => {
+                            const sel = formData.technicianIds.includes(t.id);
+                            return (
+                                <button key={t.id} type="button" disabled={isReadOnly} onClick={() => toggleTechnician(t.id)}
+                                    className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all group ${sel ? 'border-red-600 bg-red-50 shadow-md' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-md transition-transform group-active:scale-90 ${sel ? 'bg-red-600' : t.avatarColor}`}>
+                                        {t.name.substring(0,2).toUpperCase()}
+                                    </div>
+                                    <span className={`text-[11px] font-bold uppercase tracking-tight ${sel ? 'text-red-700' : 'text-slate-600'}`}>{t.name}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
-             ) : (
-                <div>
-                    <label className="block text-sm text-gray-700 mb-1">Duração Prevista (Horas)</label>
-                    <input
-                        type="number"
-                        min="0.5"
-                        step="0.5"
-                        required
-                        disabled={isReadOnly}
-                        value={formData.duration}
-                        onChange={(e) => setFormData({...formData, duration: parseFloat(e.target.value)})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                    />
-                </div>
-             )}
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-               <label className="block text-sm text-gray-700 mb-1">Hora de Início</label>
-               <div className="relative">
-                 <Clock className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                 <input
-                  type="time"
-                  required
-                  disabled={isReadOnly}
-                  value={formData.scheduledTime}
-                  onChange={(e) => setFormData({...formData, scheduledTime: e.target.value})}
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                />
-               </div>
-            </div>
-             <div>
-                <label className="block text-sm text-gray-700 mb-1">Nº do Ticket</label>
-                <div className="relative">
-                    <Hash className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                    <input
-                    type="text"
-                    required
-                    disabled={isReadOnly}
-                    placeholder="EX: TCK-001"
-                    value={formData.ticketNumber}
-                    onChange={(e) => setFormData({...formData, ticketNumber: e.target.value})}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                    />
+                <div className="space-y-4">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2 border-b border-slate-100 pb-2">
+                        <Monitor size={14} className="text-orange-600" /> Serviço e Equipamento
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tipo de Serviço</label>
+                            <select disabled={isReadOnly} value={formData.serviceId} onChange={(e) => handleServiceChange(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold bg-white text-sm outline-none text-slate-900 focus:ring-4 focus:ring-red-100">
+                                {services.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            {isReconstruction ? (
+                                <>
+                                <label className="block text-[10px] font-bold text-orange-600 uppercase tracking-widest">Visor de Substituição</label>
+                                <select required disabled={isReadOnly} value={formData.visorId} onChange={(e) => setFormData({...formData, visorId: e.target.value})}
+                                   className="w-full px-4 py-3 border border-orange-200 rounded-xl font-bold bg-orange-50 text-orange-900 text-sm outline-none focus:ring-4 focus:ring-orange-100">
+                                   <option value="">-- SELECIONE VISOR --</option>
+                                   {visores.map(v => <option key={v.id} value={v.id}>{v.name.toUpperCase()}</option>)}
+                                </select>
+                                </>
+                            ) : (
+                                <>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Duração Prevista (h)</label>
+                                <input type="number" min="0.5" step="0.5" required disabled={isReadOnly} value={formData.duration}
+                                    onChange={(e) => setFormData({...formData, duration: parseFloat(e.target.value)})}
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold text-sm bg-white text-slate-900 focus:ring-4 focus:ring-red-100" />
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
-             <div>
-                <label className="block text-sm text-gray-700 mb-1">Nº do Processo</label>
-                <div className="relative">
-                    <FileText className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                    <input
-                    type="text"
-                    disabled={isReadOnly}
-                    placeholder="Opcional"
-                    value={formData.processNumber}
-                    onChange={(e) => setFormData({...formData, processNumber: e.target.value})}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                    />
-                </div>
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Cliente</label>
-            <div className="relative">
-                <User className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                <input
-                type="text"
-                required
-                disabled={isReadOnly}
-                placeholder="Nome do Cliente"
-                value={formData.customerName}
-                onChange={(e) => setFormData({...formData, customerName: e.target.value})}
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                />
+            {/* Coluna Direita: Dados de Cliente e ERP */}
+            <div className="space-y-8">
+                <div className="space-y-4">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2 border-b border-slate-100 pb-2">
+                        <FileText size={14} className="text-slate-600" /> Referências ERP / Internas
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nº Ticket ERP</label>
+                            <input type="text" required disabled={isReadOnly} value={formData.ticketNumber}
+                                onChange={(e) => setFormData({...formData, ticketNumber: e.target.value})}
+                                className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold text-sm uppercase bg-white text-slate-900 focus:ring-4 focus:ring-red-100" placeholder="TK-0000" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proc. Interno</label>
+                            <input type="text" disabled={isReadOnly} value={formData.processNumber}
+                                onChange={(e) => setFormData({...formData, processNumber: e.target.value})}
+                                className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold text-sm bg-white text-slate-900 focus:ring-4 focus:ring-red-100" placeholder="Referência" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-5">
+                    <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <MapPin size={16} className="text-red-600" /> Localização do Cliente
+                    </h4>
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Entidade / Nome do Cliente</label>
+                            <input type="text" required disabled={isReadOnly} value={formData.customerName}
+                                onChange={(e) => setFormData({...formData, customerName: e.target.value})}
+                                className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold uppercase text-slate-900 text-sm bg-white focus:ring-4 focus:ring-red-100" placeholder="NOME DO CLIENTE" />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Morada / Código Postal</label>
+                                <input type="text" required disabled={isReadOnly} value={formData.address}
+                                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl font-medium text-slate-700 text-xs bg-white focus:ring-4 focus:ring-red-100" placeholder="Rua ou CP para Rota" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Localidade / Cidade</label>
+                                <input type="text" disabled={isReadOnly} value={formData.locality}
+                                    onChange={(e) => setFormData({...formData, locality: e.target.value})}
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold uppercase text-slate-900 text-xs bg-white focus:ring-4 focus:ring-red-100" placeholder="CIDADE" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h3 className="text-[11px] font-bold text-red-600 uppercase tracking-[0.3em] flex items-center gap-2 border-b border-red-100 pb-2">
+                        <AlertCircle size={14} /> Detalhes da Anomalia
+                    </h3>
+                    <textarea disabled={isReadOnly} value={formData.faultDescription}
+                        onChange={(e) => setFormData({...formData, faultDescription: e.target.value})}
+                        className="w-full px-5 py-4 border border-slate-300 rounded-2xl outline-none h-40 resize-none font-medium text-slate-700 text-sm focus:border-red-400 transition-all bg-white shadow-inner focus:ring-4 focus:ring-red-50"
+                        placeholder="Descreva aqui os detalhes técnicos reportados pelo cliente ou os passos necessários para a intervenção..." />
+                </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label className="block text-sm text-gray-700 mb-1">Morada</label>
-                <div className="relative">
-                    <MapPin className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                    <input
-                    type="text"
-                    required
-                    disabled={isReadOnly}
-                    placeholder="Rua e Código Postal"
-                    value={formData.address}
-                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                    />
-                </div>
-            </div>
-            <div>
-                <label className="block text-sm text-gray-700 mb-1">Localidade</label>
-                <input
-                type="text"
-                disabled={isReadOnly}
-                placeholder="Ex: LISBOA"
-                value={formData.locality}
-                onChange={(e) => setFormData({...formData, locality: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Veículo</label>
-              <select
-                disabled={isReadOnly}
-                value={formData.vehicleType}
-                onChange={(e) => setFormData({...formData, vehicleType: e.target.value as VehicleType})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none disabled:bg-gray-100"
-              >
-                {Object.values(VehicleType).map(v => (
-                  <option key={v} value={v}>{v}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Estado</label>
-              <select
-                disabled={isReadOnly}
-                value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value as TicketStatus})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none disabled:bg-gray-100"
-              >
-                <option value={TicketStatus.NAO_CONFIRMADO}>Não Confirmado</option>
-                <option value={TicketStatus.CONFIRMADO}>Confirmado</option>
-                <option value={TicketStatus.PARCIALMENTE_RESOLVIDO}>Parcialmente Resolvido</option>
-                <option value={TicketStatus.RESOLVIDO}>Resolvido</option>
-                <option value={TicketStatus.EM_ANDAMENTO}>Em Andamento</option>
-                <option value={TicketStatus.NAO_REALIZADO}>Não Realizado</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-             <label className="block text-sm text-gray-700 mb-1 flex items-center gap-2">
-                 <AlertCircle size={16} className="text-red-500"/>
-                 Descrição de Avaria
-             </label>
-             <textarea
-                disabled={isReadOnly}
-                placeholder="Descreva a avaria reportada..."
-                value={formData.faultDescription}
-                onChange={(e) => setFormData({...formData, faultDescription: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none disabled:bg-gray-100"
-             />
-          </div>
-
-          <div className="pt-4 flex justify-between shrink-0">
+          <div className="mt-12 pt-8 flex justify-between items-center shrink-0 border-t border-slate-100">
             {ticketToEdit && onDelete && !isReadOnly && (
-                <button
-                    type="button"
-                    onClick={handleDelete}
-                    className="px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-2"
-                >
-                    <Trash2 size={18} />
-                    Eliminar
+                <button type="button" onClick={() => { if(window.confirm("Eliminar este serviço permanentemente do histórico?")) { onDelete(ticketToEdit.id); onClose(); } }}
+                    className="bg-rose-50 text-rose-600 px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-rose-100 transition-all flex items-center gap-2">
+                    <Trash2 size={16} /> Eliminar Registo
                 </button>
             )}
-            <div className="flex space-x-3 ml-auto">
-                <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                Fechar
+            <div className="flex gap-4 ml-auto">
+                <button type="button" onClick={onClose} className="px-8 py-3 text-slate-400 font-bold uppercase tracking-widest text-[10px] hover:text-slate-600 transition-colors">
+                  Cancelar
                 </button>
                 {!isReadOnly && (
-                    <button
-                    type="submit"
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 shadow-md transition-all active:scale-95 uppercase tracking-widest text-xs"
-                    >
-                    <Save size={18} />
-                    Guardar
+                    <button type="submit"
+                        className="px-12 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold shadow-2xl shadow-red-200 uppercase tracking-[0.2em] text-[11px] transition-all active:scale-95 flex items-center gap-3">
+                        <Save size={20} /> Gravar Agendamento
                     </button>
                 )}
             </div>
