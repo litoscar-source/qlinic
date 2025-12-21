@@ -179,20 +179,24 @@ function App() {
   const handleMoveTicket = (ticketId: string, newDate: Date, newTechId: string, sourceTechId?: string | null) => {
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
+      
       let newTechList = [...t.technicianIds];
       
       if (sourceTechId && newTechList.includes(sourceTechId)) {
           const index = newTechList.indexOf(sourceTechId);
           if (!newTechList.includes(newTechId)) {
+            // Se o destino não está na lista, substitui a origem pelo destino
             newTechList[index] = newTechId;
           } else if (newTechList.length > 1) {
+            // Se o destino já está na lista e temos mais que um técnico, remove apenas a origem
             newTechList.splice(index, 1);
           }
-      } else {
+      } else if (!newTechList.includes(newTechId)) {
+          // Fallback se não houver sourceTechId: substitui todos pelo novo técnico
           newTechList = [newTechId];
       }
       
-      return { ...t, date: newDate, technicianIds: newTechList };
+      return { ...t, date: startOfDay(newDate), technicianIds: newTechList };
     }));
   };
 
@@ -402,15 +406,15 @@ function App() {
             technicians={technicians}
             services={services}
             visores={visores}
-            onAddTechnician={(t) => setTechnicians(prev => [...prev, { ...t, id: `tech-${Date.now()}` }])}
+            onAddTechnician={(t) => setTechnicians(prev => [...prev, t])}
             onRemoveTechnician={(id) => setTechnicians(prev => prev.filter(t => t.id !== id))}
-            onAddService={(s) => setServices(prev => [...prev, { ...s, id: `svc-${Date.now()}` }])}
+            onAddService={(s) => setServices(prev => [...prev, s])}
             onRemoveService={(id) => setServices(prev => prev.filter(s => s.id !== id))}
-            onAddVisor={(v) => setVisores(prev => [...prev, { ...v, id: `visor-${Date.now()}` }])}
+            onAddVisor={(v) => setVisores(prev => [...prev, v])}
             onRemoveVisor={(id) => setVisores(prev => prev.filter(v => v.id !== id))}
         />
 
-        <ReportsModal isOpen={isReportsModalOpen} onClose={() => setIsReportsModalOpen(false)} tickets={tickets} dayStatuses={dayStatuses} technicians={technicians} services={services} />
+        <ReportsModal isOpen={isReportsModalOpen} onClose={() => setIsReportsModalOpen(false)} tickets={tickets} dayStatuses={dayStatuses} technicians={technicians} services={services} visores={visores} />
     </div>
   );
 }

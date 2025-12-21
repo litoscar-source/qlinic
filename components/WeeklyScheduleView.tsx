@@ -110,7 +110,8 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     }
   };
 
-  const gridTemplateColumns = `160px repeat(7, minmax(130px, 1fr))`;
+  // 160px para a coluna de técnicos, 5 colunas flexíveis e 2 colunas finas de 70px para fins de semana
+  const gridTemplateColumns = `160px repeat(5, minmax(130px, 1fr)) repeat(2, 70px)`;
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-slate-300 flex flex-col h-full overflow-hidden select-none relative font-sans text-slate-900 antialiased">
@@ -223,7 +224,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                                         {ticket.customerName}
                                                     </p>
 
-                                                    {!isCompact && (
+                                                    {!isCompact && !isWknd && (
                                                       <div className="flex flex-col gap-0.5 bg-white/50 rounded px-1.5 py-1 border border-black/10">
                                                           <div className="flex items-center gap-1">
                                                               <MapPin size={9} className="text-red-600 shrink-0" />

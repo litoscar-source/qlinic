@@ -39,9 +39,10 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
       const matchTech = !selectedTechId || t.technicianIds.includes(selectedTechId);
       let matchTime = false;
       
-      if (period === 'daily') matchTime = isSameDay(t.date, selectedDate);
-      else if (period === 'weekly') matchTime = isSameWeek(t.date, selectedDate, { weekStartsOn: 1 });
-      else matchTime = isSameMonth(t.date, selectedDate);
+      const ticketDate = new Date(t.date);
+      if (period === 'daily') matchTime = isSameDay(ticketDate, selectedDate);
+      else if (period === 'weekly') matchTime = isSameWeek(ticketDate, selectedDate, { weekStartsOn: 1 });
+      else matchTime = isSameMonth(ticketDate, selectedDate);
       
       return matchTech && matchTime;
     });
@@ -56,7 +57,8 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
       return tickets.filter(t => {
           const service = services.find(s => s.id === t.serviceId);
           const isRecon = service?.name.toLowerCase().includes('reconstrução');
-          const inDate = isWithinInterval(new Date(t.date), { start, end });
+          const ticketDate = new Date(t.date);
+          const inDate = isWithinInterval(ticketDate, { start, end });
           return isRecon && inDate && t.visorId;
       }).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [tickets, services, startDate, endDate, isOpen]);
@@ -71,9 +73,10 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
     const overnights = dayStatuses.filter(ds => {
       const matchTech = !selectedTechId || ds.technicianId === selectedTechId;
       let matchTime = false;
-      if (period === 'daily') matchTime = isSameDay(ds.date, selectedDate);
-      else if (period === 'weekly') matchTime = isSameWeek(ds.date, selectedDate, { weekStartsOn: 1 });
-      else matchTime = isSameMonth(ds.date, selectedDate);
+      const dsDate = new Date(ds.date);
+      if (period === 'daily') matchTime = isSameDay(dsDate, selectedDate);
+      else if (period === 'weekly') matchTime = isSameWeek(dsDate, selectedDate, { weekStartsOn: 1 });
+      else matchTime = isSameMonth(dsDate, selectedDate);
       return matchTech && matchTime && ds.isOvernight;
     }).length;
 
