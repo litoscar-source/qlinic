@@ -12,7 +12,7 @@ import { MobileTechnicianView } from './components/MobileTechnicianView';
 import { Technician, Ticket, ServiceDefinition, User, DayStatus, TicketStatus, Visor, CloudData } from './types';
 import { addWeeks, subWeeks, format, isSameDay, startOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Settings, Route, FileBarChart, Download, Upload, LogOut, Calendar, LayoutGrid, List, Link, Maximize2, Minimize2, Cloud, CloudOff, RefreshCw, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Route, FileBarChart, LogOut, Calendar, LayoutGrid, List, Maximize2, Minimize2, Cloud, CloudOff, RefreshCw, AlertCircle, Download, Upload } from 'lucide-react';
 
 const SEED_TECHNICIANS: Technician[] = [
   { id: 'tech-1', name: 'João Silva', avatarColor: 'bg-blue-600', password: '1234' },
@@ -21,18 +21,17 @@ const SEED_TECHNICIANS: Technician[] = [
 ];
 
 const SEED_SERVICES: ServiceDefinition[] = [
-  { id: 'svc-1', name: 'Assistência', defaultDuration: 1, colorClass: 'bg-slate-50' },
-  { id: 'svc-2', name: 'Instalação', defaultDuration: 4, colorClass: 'bg-blue-100' },
-  { id: 'svc-7', name: 'Reconstrução', defaultDuration: 6, colorClass: 'bg-orange-100' },
+  { id: 'svc-1', name: 'Assistência', defaultDuration: 1, colorClass: 'bg-slate-100' },
+  { id: 'svc-2', name: 'Instalação', defaultDuration: 4, colorClass: 'bg-blue-600' },
+  { id: 'svc-7', name: 'Reconstrução', defaultDuration: 6, colorClass: 'bg-orange-500' },
 ];
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCompactView, setIsCompactView] = useState(true);
   const [syncKey, setSyncKey] = useState<string | null>(localStorage.getItem('cloud_sync_key'));
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<number>(0);
+  const [lastSyncTime, setLastSyncTime] = useState<number>(() => Number(localStorage.getItem('last_sync_time')) || 0);
   const [syncError, setSyncError] = useState<string | null>(null);
 
   const [technicians, setTechnicians] = useState<Technician[]>(() => {
@@ -71,23 +70,22 @@ function App() {
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [newTicketPreData, setNewTicketPreData] = useState<{date: Date, techId: string} | null>(null);
 
-  // Efeito de sincronização Cloud
   useEffect(() => {
     if (syncKey) {
       handleCloudSync('pull');
-      const interval = setInterval(() => handleCloudSync('pull'), 30000); // Auto-refresh a cada 30 segundos
+      const interval = setInterval(() => handleCloudSync('pull'), 45000); 
       return () => clearInterval(interval);
     }
   }, [syncKey]);
 
-  // Persistência Local
   useEffect(() => {
     localStorage.setItem('local_technicians', JSON.stringify(technicians));
     localStorage.setItem('local_services', JSON.stringify(services));
     localStorage.setItem('local_visores', JSON.stringify(visores));
     localStorage.setItem('local_tickets', JSON.stringify(tickets));
     localStorage.setItem('local_day_statuses', JSON.stringify(dayStatuses));
-  }, [technicians, services, visores, tickets, dayStatuses]);
+    localStorage.setItem('last_sync_time', lastSyncTime.toString());
+  }, [technicians, services, visores, tickets, dayStatuses, lastSyncTime]);
 
   const handleCloudSync = async (mode: 'push' | 'pull') => {
     if (!syncKey || isSyncing) return;
@@ -97,12 +95,12 @@ function App() {
       const url = `https://jsonblob.com/api/jsonBlob/${syncKey}`;
       
       if (mode === 'pull') {
-        const res = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
+        const res = await fetch(url, { 
+            method: 'GET',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
         });
         if (res.ok) {
           const data: CloudData = await res.json();
-          // Pull apenas se os dados forem novos ou se for o primeiro sync da sessão
           if (data && (data.lastSync > lastSyncTime || lastSyncTime === 0)) {
             if (data.technicians) setTechnicians(data.technicians);
             if (data.services) setServices(data.services);
@@ -112,9 +110,7 @@ function App() {
             setLastSyncTime(data.lastSync);
           }
         } else if (res.status === 404) {
-           setSyncError("Chave Cloud não encontrada. Verifique se a chave está correta.");
-           setSyncKey(null);
-           localStorage.removeItem('cloud_sync_key');
+           setSyncError("Chave inválida.");
         }
       } else {
         const payload: CloudData = {
@@ -124,21 +120,13 @@ function App() {
         };
         const res = await fetch(url, {
           method: 'PUT',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify(payload)
         });
-        if (res.ok) {
-            setLastSyncTime(payload.lastSync);
-        } else {
-            throw new Error("Erro ao enviar dados.");
-        }
+        if (res.ok) setLastSyncTime(payload.lastSync);
       }
     } catch (e) {
-      console.error("Erro na sincronização:", e);
-      setSyncError("Sem ligação à Cloud. Verifique a internet.");
+      setSyncError("Erro de Ligação");
     } finally {
       setIsSyncing(false);
     }
@@ -149,16 +137,13 @@ function App() {
     setSyncError(null);
     try {
       const payload: CloudData = { 
-        technicians, 
-        services, 
-        visores, 
-        tickets, 
-        dayStatuses, 
+        technicians, services, visores, tickets, dayStatuses, 
         lastSync: Date.now() 
       };
       
       const res = await fetch('https://jsonblob.com/api/jsonBlob', {
         method: 'POST',
+        mode: 'cors',
         headers: { 
             'Content-Type': 'application/json',
             'Accept': 'application/json'
@@ -167,38 +152,74 @@ function App() {
       });
 
       if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`HTTP ${res.status}: ${errorText}`);
+          const errText = await res.text();
+          throw new Error(`Servidor: ${res.status} - ${errText}`);
       }
 
+      let id = "";
+      // Tentativa 1: Header Location (o browser pode bloquear por CORS)
       const location = res.headers.get('Location');
       if (location) {
-        const id = location.split('/').pop();
-        if (id) {
-          setSyncKey(id);
-          localStorage.setItem('cloud_sync_key', id);
-          setLastSyncTime(payload.lastSync);
-          alert("Sincronização Cloud Ativada com Sucesso!");
-        } else {
-            throw new Error("ID de localização inválido.");
-        }
+        id = location.split('/').pop() || "";
+      } 
+      
+      // Tentativa 2: Ler corpo (JsonBlob costuma retornar o ID no corpo se solicitado)
+      if (!id) {
+          try {
+              const data = await res.json();
+              if (data && data.id) id = data.id;
+              // Se a API retornar a URL completa no corpo
+              else if (typeof data === 'string' && data.includes('/')) id = data.split('/').pop() || "";
+          } catch(e) {}
+      }
+
+      if (id) {
+        setSyncKey(id);
+        localStorage.setItem('cloud_sync_key', id);
+        setLastSyncTime(payload.lastSync);
+        alert("Cloud ativada com sucesso!");
       } else {
-          // Fallback se o Location header não vier (alguns browsers/proxies)
-          const data = await res.json();
-          if (data && data.id) {
-             setSyncKey(data.id);
-             localStorage.setItem('cloud_sync_key', data.id);
-             setLastSyncTime(payload.lastSync);
-          } else {
-             throw new Error("Não foi possível obter a chave de sincronização.");
-          }
+        throw new Error("Não foi possível capturar o ID da chave. Tente novamente.");
       }
     } catch (e: any) {
-      console.error("Erro ao criar chave:", e);
-      alert(`Falha ao criar chave cloud: ${e.message}. Verifique a sua ligação à internet.`);
+      console.error("Cloud Error:", e);
+      const msg = e.message.includes('fetch') ? "Falha de Rede. Verifique se tem AdBlockers ou Firewall a bloquear o jsonblob.com" : e.message;
+      alert(`Erro na Cloud: ${msg}`);
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleExportBackup = () => {
+    const data = { technicians, services, visores, tickets, dayStatuses, lastSync: lastSyncTime };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup-qlinic-marques-${format(new Date(), 'yyyy-MM-dd')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data: CloudData = JSON.parse(e.target?.result as string);
+            if (data.technicians) setTechnicians(data.technicians);
+            if (data.services) setServices(data.services);
+            if (data.visores) setVisores(data.visores);
+            if (data.tickets) setTickets(data.tickets.map(t => ({ ...t, date: new Date(t.date) })));
+            if (data.dayStatuses) setDayStatuses(data.dayStatuses.map(d => ({ ...d, date: new Date(d.date) })));
+            alert("Backup restaurado com sucesso!");
+        } catch (err) {
+            alert("Erro ao ler ficheiro de backup.");
+        }
+    };
+    reader.readAsText(file);
   };
 
   const handleSaveTicket = (ticketData: Omit<Ticket, 'id'>) => {
@@ -411,6 +432,8 @@ function App() {
                 if(key) { setLastSyncTime(0); handleCloudSync('pull'); } 
             }}
             onCreateSyncKey={createNewSyncKey}
+            onExportBackup={handleExportBackup}
+            onImportBackup={handleImportBackup}
         />
 
         <ReportsModal isOpen={isReportsModalOpen} onClose={() => setIsReportsModalOpen(false)} tickets={tickets} dayStatuses={dayStatuses} technicians={technicians} services={services} visores={visores} />

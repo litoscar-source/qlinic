@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday, isWeekend } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Ticket, TicketStatus, Technician, ServiceDefinition, DayStatus, Visor } from '../types';
-import { MapPin, Clock, Moon, Plus, Users, CheckCircle2, FileText, AlertTriangle, CheckCircle, HelpCircle, MoreHorizontal } from 'lucide-react';
+import { MapPin, Clock, Moon, Plus, Users, MoreHorizontal, MousePointer2 } from 'lucide-react';
 
 interface WeeklyScheduleViewProps {
   currentDate: Date;
@@ -13,8 +13,6 @@ interface WeeklyScheduleViewProps {
   services: ServiceDefinition[];
   visores?: Visor[];
   onTicketUpdate: (ticketId: string, updates: Partial<Ticket>) => void;
-  onTicketMove?: (ticketId: string, newDate: Date, newTechId: string, sourceTechId?: string | null) => void;
-  onTicketSwap?: (sourceId: string, targetId: string) => void;
   onEditTicket: (ticket: Ticket) => void;
   onNewTicket?: (date: Date, techId: string) => void;
   onToggleOvernight?: (date: Date, techId: string) => void;
@@ -30,10 +28,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
   dayStatuses,
   technicians,
   services,
-  visores = [],
   onTicketUpdate,
-  onTicketMove,
-  onTicketSwap,
   onEditTicket,
   onNewTicket,
   onToggleOvernight,
@@ -46,50 +41,33 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
   const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const [activeMenu, setActiveMenu] = useState<{ 
-    x: number, 
-    y: number, 
-    type: 'cell' | 'status', 
-    data: any 
-  } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, day: Date, techId: string } | null>(null);
 
   useEffect(() => {
-    const handleClick = () => setActiveMenu(null);
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    const handleGlobalClick = () => setContextMenu(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
 
-  const handleCellContextMenu = (e: React.MouseEvent, date: Date, techId: string) => {
+  const handleContextMenu = (e: React.MouseEvent, day: Date, techId: string) => {
     e.preventDefault();
     if (isReadOnly) return;
-    onSelectDate(date);
-    setActiveMenu({ x: e.clientX, y: e.clientY, type: 'cell', data: { date, techId } });
-  };
-
-  const handleStatusQuickChange = (e: React.MouseEvent, ticket: Ticket) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isReadOnly) return;
-    setActiveMenu({ x: e.clientX, y: e.clientY, type: 'status', data: ticket });
+    setContextMenu({ x: e.clientX, y: e.clientY, day, techId });
   };
 
   const isDarkColor = (colorClass: string) => {
-    const darkColors = ['bg-blue-600', 'bg-purple-600', 'bg-red-600', 'bg-slate-800', 'bg-slate-900', 'bg-indigo-600', 'bg-rose-500', 'bg-emerald-600'];
+    const darkColors = ['bg-blue-600', 'bg-purple-600', 'bg-red-600', 'bg-slate-900', 'bg-indigo-600', 'bg-emerald-600', 'bg-orange-500', 'bg-rose-500', 'bg-slate-800'];
     return darkColors.includes(colorClass);
   };
 
   const getCardStyle = (ticket: Ticket, service: ServiceDefinition | undefined) => {
-    let baseStyle = `${service?.colorClass || 'bg-slate-100'} border shadow-md transition-all duration-200 `;
+    let baseStyle = `${service?.colorClass || 'bg-slate-100'} border shadow-sm transition-all duration-200 border-black/10 `;
     let statusBorder = 'border-l-[5px]';
     
-    // Borda de contraste
-    baseStyle += ' border-black/10';
-
     switch (ticket.status) {
       case TicketStatus.RESOLVIDO: statusBorder += ' border-l-emerald-600'; break;
       case TicketStatus.CONFIRMADO: statusBorder += ' border-l-slate-900'; break;
       case TicketStatus.NAO_CONFIRMADO: statusBorder += ' border-l-rose-500 border-dashed'; break;
-      case TicketStatus.NAO_REALIZADO: statusBorder += ' border-l-red-800'; break;
       case TicketStatus.PARCIALMENTE_RESOLVIDO: statusBorder += ' border-l-orange-500'; break;
       default: statusBorder += ' border-l-blue-600';
     }
@@ -98,25 +76,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
 
   const getTextColor = (ticket: Ticket, service: ServiceDefinition | undefined) => {
     if (service && isDarkColor(service.colorClass)) return 'text-white';
-    
-    if (ticket.status === TicketStatus.NAO_CONFIRMADO) return 'text-rose-800';
-    if (ticket.status === TicketStatus.RESOLVIDO) return 'text-emerald-900';
     return 'text-slate-900';
-  };
-
-  const handleDragStart = (e: React.DragEvent, ticketId: string, sourceTechId: string) => {
-    if (isReadOnly) return;
-    e.dataTransfer.setData('ticketId', ticketId);
-    e.dataTransfer.setData('sourceTechId', sourceTechId);
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '0.4';
-    }
-  };
-
-  const handleDragEnd = (e: React.DragEvent) => {
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '1';
-    }
   };
 
   const gridTemplateColumns = `160px repeat(5, minmax(130px, 1fr)) repeat(2, 70px)`;
@@ -129,28 +89,14 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                 <div className="p-2 text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center border-r border-slate-300 bg-white z-30 sticky left-0 shadow-sm">
                     <Users size={12} className="mr-1.5 text-red-600" /> EQUIPA
                 </div>
-                {daysInWeek.map(day => {
-                    const isSelected = isSameDay(day, selectedDate);
-                    const isWknd = isWeekend(day);
-                    const isCurrent = isToday(day);
-                    return (
-                        <div 
-                          key={day.toISOString()} 
-                          onClick={() => onSelectDate(day)} 
-                          className={`py-1 border-r border-slate-300 last:border-r-0 flex flex-col items-center justify-center cursor-pointer transition-colors 
-                            ${isWknd ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-500'} 
-                            ${isSelected && !isWknd ? 'bg-blue-50 ring-inset ring-1 ring-blue-400' : ''} 
-                            ${isCurrent ? 'bg-red-100 !text-red-700' : ''}`}
-                        >
-                            <span className={`text-[9px] uppercase font-bold tracking-tight ${isWknd ? 'text-slate-400' : 'text-slate-400'}`}>
-                              {format(day, 'EEE', { locale: pt })}
-                            </span>
-                            <div className={`text-sm leading-none font-bold ${isCurrent ? 'text-red-700' : (isWknd ? 'text-white' : 'text-slate-900')}`}>
-                              {format(day, 'dd')}
-                            </div>
-                        </div>
-                    );
-                })}
+                {daysInWeek.map(day => (
+                    <div key={day.toISOString()} onClick={() => onSelectDate(day)} 
+                        className={`py-1 border-r border-slate-300 last:border-r-0 flex flex-col items-center justify-center cursor-pointer transition-colors 
+                        ${isWeekend(day) ? 'bg-slate-800 text-white' : (isToday(day) ? 'bg-red-100 text-red-700' : 'bg-slate-50 text-slate-500')}`}>
+                        <span className="text-[9px] uppercase font-bold tracking-tight">{format(day, 'EEE', { locale: pt })}</span>
+                        <div className="text-sm leading-none font-bold">{format(day, 'dd')}</div>
+                    </div>
+                ))}
             </div>
 
             <div className="divide-y divide-slate-200">
@@ -166,95 +112,71 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                         {daysInWeek.map(day => {
                             const dayTechTickets = tickets.filter(t => isSameDay(t.date, day) && t.technicianIds.includes(tech.id)).sort((a,b) => a.scheduledTime.localeCompare(b.scheduledTime));
                             const isOvernight = dayStatuses.some(ds => isSameDay(ds.date, day) && ds.technicianId === tech.id && ds.isOvernight);
-                            const isSelected = isSameDay(day, selectedDate);
-                            const isWknd = isWeekend(day);
 
                             return (
                                 <div key={`${day.toISOString()}-${tech.id}`}
-                                    className={`border-r border-slate-200 last:border-r-0 flex flex-col gap-1 relative overflow-hidden transition-colors 
-                                      ${isCompact ? 'p-0.5 pb-4' : 'p-1.5 pb-8'} 
-                                      ${isWknd ? 'bg-slate-200/40' : ''} 
-                                      ${isSelected ? 'bg-blue-50/40 shadow-inner' : ''}`}
-                                    onClick={() => onSelectDate(day)}
-                                    onContextMenu={(e) => handleCellContextMenu(e, day, tech.id)}
-                                    onDragOver={(e) => {
-                                        e.preventDefault();
-                                        if (e.currentTarget instanceof HTMLElement) {
-                                          e.currentTarget.classList.add('bg-blue-100/50');
-                                        }
-                                    }}
-                                    onDragLeave={(e) => {
-                                        if (e.currentTarget instanceof HTMLElement) {
-                                          e.currentTarget.classList.remove('bg-blue-100/50');
-                                        }
-                                    }}
-                                    onDrop={(e) => {
-                                        e.preventDefault();
-                                        if (e.currentTarget instanceof HTMLElement) {
-                                          e.currentTarget.classList.remove('bg-blue-100/50');
-                                        }
-                                        const ticketId = e.dataTransfer.getData('ticketId');
-                                        const sourceTechId = e.dataTransfer.getData('sourceTechId');
-                                        if (ticketId && onTicketMove) {
-                                          onTicketMove(ticketId, day, tech.id, sourceTechId);
-                                        }
-                                    }}>
+                                    className={`group/cell border-r border-slate-200 last:border-r-0 flex flex-col gap-1 relative overflow-hidden transition-colors 
+                                    ${isCompact ? 'p-0.5 pb-4' : 'p-1.5 pb-8'} 
+                                    ${isWeekend(day) ? 'bg-slate-200/40' : (isOvernight ? 'bg-amber-50/30' : '')}`}
+                                    onContextMenu={(e) => handleContextMenu(e, day, tech.id)}
+                                    onClick={() => onSelectDate(day)}>
                                     
+                                    {/* Overlay de Botões no Hover */}
+                                    {!isReadOnly && (
+                                        <div className="absolute top-1 right-1 flex gap-1 z-30 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                                            <button onClick={(e) => { e.stopPropagation(); onToggleOvernight?.(day, tech.id); }}
+                                                className={`p-1 rounded shadow-sm border transition-all ${isOvernight ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-400 hover:text-amber-500 border-slate-200'}`}
+                                                title="Alternar Dormida">
+                                                <Moon size={isCompact ? 10 : 12} fill={isOvernight ? "currentColor" : "none"} />
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); onNewTicket?.(day, tech.id); }}
+                                                className="p-1 rounded bg-red-600 text-white shadow-sm border border-red-700 hover:bg-red-700 transition-all"
+                                                title="Novo Serviço">
+                                                <Plus size={isCompact ? 10 : 12} />
+                                            </button>
+                                        </div>
+                                    )}
+
                                     {isOvernight && (
-                                        <div className="absolute bottom-0 left-0 right-0 bg-amber-500 text-white text-[9px] font-bold py-1.5 px-1 flex items-center justify-center gap-1.5 z-10 uppercase tracking-[0.2em] border-t border-amber-600 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
+                                        <div 
+                                            onClick={(e) => { e.stopPropagation(); onToggleOvernight?.(day, tech.id); }}
+                                            className="absolute bottom-0 left-0 right-0 bg-amber-500 text-white text-[9px] font-bold py-1.5 flex items-center justify-center gap-1.5 z-10 uppercase tracking-widest cursor-pointer hover:bg-amber-600 transition-colors shadow-[0_-2px_10px_rgba(245,158,11,0.3)]">
                                             <Moon size={10} fill="currentColor" /> DORMIDA
                                         </div>
                                     )}
 
-                                    <div className={`flex-1 flex gap-1 ${isCompact ? 'flex-row items-center content-center h-full' : 'flex-col mt-1'}`}>
+                                    <div className={`flex-1 flex gap-1 ${isCompact ? 'flex-row items-center h-full' : 'flex-col mt-1'}`}>
                                         {dayTechTickets.map(ticket => {
                                             const service = services.find(s => s.id === ticket.serviceId);
                                             const textCls = getTextColor(ticket, service);
                                             const isDark = service ? isDarkColor(service.colorClass) : false;
                                             
                                             return (
-                                                <div key={`${ticket.id}-${tech.id}`} draggable={!isReadOnly}
-                                                    onDragStart={(e) => handleDragStart(e, ticket.id, tech.id)}
-                                                    onDragEnd={handleDragEnd}
-                                                    onClick={(e) => { e.stopPropagation(); onEditTicket(ticket); }}
-                                                    onContextMenu={(e) => handleStatusQuickChange(e, ticket)}
+                                                <div key={`${ticket.id}-${tech.id}`} onClick={(e) => { e.stopPropagation(); onEditTicket(ticket); }}
                                                     className={`rounded shadow-md relative font-sans ${getCardStyle(ticket, service)} ${isCompact ? 'p-0.5 h-[34px] flex-1 min-w-[100px] border-l-[4px]' : 'p-2 mb-1 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 border-l-[6px]'}`}>
                                                     
                                                     <div className={`flex justify-between items-center ${isCompact ? 'mb-0' : 'mb-0.5'}`}>
                                                         <div className={`flex items-center gap-1 font-black ${isCompact ? 'text-[8px]' : 'text-[10px]'} ${textCls}`}>
-                                                            <Clock size={isCompact ? 8 : 10} className="shrink-0" /> {ticket.scheduledTime}
+                                                            <Clock size={isCompact ? 8 : 10} /> {ticket.scheduledTime}
                                                         </div>
-                                                        {!isCompact && (
-                                                            <MoreHorizontal size={10} className={isDark ? 'text-white/50' : 'text-slate-400'} />
-                                                        )}
+                                                        {!isCompact && <MoreHorizontal size={10} className={isDark ? 'text-white/50' : 'text-slate-400'} />}
                                                     </div>
 
                                                     <p className={`uppercase tracking-tight truncate font-black leading-tight ${isCompact ? 'text-[8px] max-w-[80px]' : 'text-[11px] mb-1.5'} ${textCls}`}>
                                                         {ticket.customerName}
                                                     </p>
 
-                                                    {!isCompact && !isWknd && (
-                                                      <div className={`flex flex-col gap-0.5 rounded px-1.5 py-1 border ${isDark ? 'bg-white/20 border-white/20' : 'bg-white/50 border-black/5'}`}>
+                                                    {!isCompact && (
+                                                      <div className={`flex flex-col gap-0.5 rounded px-1.5 py-1 border ${isDark ? 'bg-white/20 border-white/10' : 'bg-white/50 border-black/5'}`}>
                                                           <div className="flex items-center gap-1">
                                                               <MapPin size={9} className={isDark ? 'text-white' : 'text-red-600'} />
-                                                              <span className={`truncate uppercase font-black text-[9px] ${textCls}`}>{ticket.locality || 'SEM LOCALIDADE'}</span>
-                                                          </div>
-                                                          <div className="flex items-center gap-1">
-                                                              <FileText size={9} className={isDark ? 'text-white/80' : 'text-slate-600'} />
-                                                              <span className={`uppercase font-bold truncate text-[9px] ${textCls} opacity-80`}>{service?.name}</span>
+                                                              <span className={`truncate uppercase font-black text-[9px] ${textCls}`}>{ticket.locality || 'PORTUGAL'}</span>
                                                           </div>
                                                       </div>
                                                     )}
                                                 </div>
                                             );
                                         })}
-                                        {!isReadOnly && dayTechTickets.length === 0 && !isCompact && (
-                                            <div className="flex-1 flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity">
-                                                <button onClick={() => onNewTicket?.(day, tech.id)} className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-all">
-                                                    <Plus size={20} />
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             );
@@ -265,38 +187,37 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
         </div>
       </div>
 
-      {activeMenu && (
-          <div className="fixed bg-white border border-slate-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.15)] rounded-xl p-1.5 z-[100] animate-in fade-in zoom-in duration-100 min-w-[200px]"
-            style={{ left: Math.min(activeMenu.x + 4, window.innerWidth - 210), top: Math.min(activeMenu.y + 4, window.innerHeight - 200) }} onClick={(e) => e.stopPropagation()}>
-              {activeMenu.type === 'cell' ? (
-                  <div className="flex flex-col gap-1">
-                      <div className="px-3 py-1.5 text-[8px] text-slate-500 font-bold uppercase tracking-[0.2em] border-b border-slate-100 mb-0.5">Agendamento</div>
-                      <button onClick={() => { onNewTicket?.(activeMenu.data.date, activeMenu.data.techId); setActiveMenu(null); }}
-                        className="w-full text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest bg-slate-50 hover:bg-red-600 hover:text-white flex items-center gap-2 rounded-lg transition-all border border-slate-200 shadow-sm">
-                          <Plus size={14} /> Novo Serviço
-                      </button>
-                      <button onClick={() => { onToggleOvernight?.(activeMenu.data.date, activeMenu.data.techId); setActiveMenu(null); }}
-                        className="w-full text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 flex items-center gap-2 rounded-lg transition-all border border-transparent">
-                          <Moon size={14} /> Marcar Dormida
-                      </button>
-                  </div>
-              ) : (
-                  <div className="flex flex-col gap-1">
-                      <div className="px-3 py-1.5 text-[8px] text-slate-500 font-bold uppercase tracking-[0.2em] border-b border-slate-100 mb-0.5">Alterar Estado</div>
-                      {[
-                        { s: TicketStatus.NAO_CONFIRMADO, i: HelpCircle, c: 'text-rose-700 hover:bg-rose-50' },
-                        { s: TicketStatus.CONFIRMADO, i: CheckCircle, c: 'text-slate-900 hover:bg-slate-100' },
-                        { s: TicketStatus.PARCIALMENTE_RESOLVIDO, i: AlertTriangle, c: 'text-orange-700 hover:bg-orange-50' },
-                        { s: TicketStatus.RESOLVIDO, i: CheckCircle2, c: 'text-emerald-700 hover:bg-emerald-50' }
-                      ].map(item => (
-                          <button key={item.s} onClick={() => { onTicketUpdate(activeMenu.data.id, { status: item.s }); setActiveMenu(null); }}
-                            className={`w-full text-left px-3 py-2 text-[10px] font-bold uppercase flex items-center gap-2 rounded-lg transition-all border border-transparent ${item.c}`}>
-                              <item.i size={14} /> {item.s}
-                          </button>
-                      ))}
-                  </div>
-              )}
+      {/* Menu de Contexto (Botão Direito) */}
+      {contextMenu && (
+        <div 
+          className="fixed z-[100] bg-white border border-slate-200 shadow-2xl rounded-2xl p-2 min-w-[200px] animate-in fade-in zoom-in duration-150"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-2 border-b border-slate-100 mb-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Opções de Célula</p>
+            <p className="text-[10px] font-bold text-slate-900">{format(contextMenu.day, "dd/MM/yyyy")}</p>
           </div>
+          <button 
+            onClick={() => { onNewTicket?.(contextMenu.day, contextMenu.techId); setContextMenu(null); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-xl transition-all text-[11px] font-bold uppercase tracking-tight"
+          >
+            <Plus size={16} /> Adicionar Serviço
+          </button>
+          <button 
+            onClick={() => { onToggleOvernight?.(contextMenu.day, contextMenu.techId); setContextMenu(null); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-amber-50 text-slate-700 hover:text-amber-600 rounded-xl transition-all text-[11px] font-bold uppercase tracking-tight"
+          >
+            <Moon size={16} /> Alternar Dormida
+          </button>
+          <div className="my-1 border-t border-slate-100" />
+          <button 
+            onClick={() => setContextMenu(null)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 text-slate-400 rounded-xl transition-all text-[11px] font-bold uppercase tracking-tight"
+          >
+            Fechar Menu
+          </button>
+        </div>
       )}
     </div>
   );
