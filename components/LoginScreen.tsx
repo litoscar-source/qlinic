@@ -56,10 +56,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 font-sans antialiased">
       <div className="mb-10 text-center animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="bg-red-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-2xl shadow-red-200 border-4 border-white rotate-3">
-           <span className="text-white text-3xl font-black tracking-tighter">Q</span>
+           <span className="text-white text-3xl font-black tracking-tighter">M</span>
         </div>
-        <h1 className="text-4xl text-slate-900 tracking-tight font-black uppercase">Qlinic Dispatch</h1>
-        <p className="text-slate-400 mt-2 font-bold tracking-widest uppercase text-[10px]">Gestão de Intervenções Técnicas</p>
+        <h1 className="text-4xl text-slate-900 tracking-tight font-black uppercase">Balanças Marques</h1>
+        <p className="text-slate-400 mt-2 font-bold tracking-widest uppercase text-[10px]">Qlinic - Gestão de Intervenções Técnicas</p>
       </div>
       
       <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-slate-200 animate-in zoom-in duration-500">
@@ -125,7 +125,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       </div>
       
       <p className="mt-10 text-[9px] text-slate-400 font-bold uppercase tracking-[0.2em] animate-in fade-in duration-1000">
-        &copy; {new Date().getFullYear()} Qlinic Dispatch AI &bull; Braga, Portugal
+        &copy; {new Date().getFullYear()} Balanças Marques &bull; Qlinic AI &bull; Braga, Portugal
       </p>
     </div>
   );

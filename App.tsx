@@ -264,10 +264,10 @@ function App() {
             <div className="px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center shadow-sm cursor-pointer" onClick={() => setCurrentDate(new Date())}>
-                         <span className="text-white text-lg font-bold">Q</span>
+                         <span className="text-white text-lg font-bold">M</span>
                     </div>
                     <div>
-                        <h1 className="text-base text-slate-900 leading-none font-bold tracking-tight">Dispatch Pro</h1>
+                        <h1 className="text-base text-slate-900 leading-none font-bold tracking-tight">Balanças Marques</h1>
                         <p className="text-[9px] text-slate-400 uppercase tracking-widest mt-0.5 font-bold">Qlinic Logistics</p>
                     </div>
                 </div>
