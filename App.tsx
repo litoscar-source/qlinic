@@ -12,7 +12,7 @@ import { MobileTechnicianView } from './components/MobileTechnicianView';
 import { Technician, Ticket, ServiceDefinition, User, DayStatus, TicketStatus, Visor, CloudData } from './types';
 import { addWeeks, subWeeks, format, isSameDay, startOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Settings, Route, FileBarChart, Download, Upload, LogOut, Calendar, LayoutGrid, List, Link, Maximize2, Minimize2, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Route, FileBarChart, Download, Upload, LogOut, Calendar, LayoutGrid, List, Link, Maximize2, Minimize2, Cloud, CloudOff, RefreshCw, AlertCircle } from 'lucide-react';
 
 const SEED_TECHNICIANS: Technician[] = [
   { id: 'tech-1', name: 'João Silva', avatarColor: 'bg-blue-600', password: '1234' },
@@ -33,6 +33,7 @@ function App() {
   const [syncKey, setSyncKey] = useState<string | null>(localStorage.getItem('cloud_sync_key'));
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<number>(0);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const [technicians, setTechnicians] = useState<Technician[]>(() => {
     const saved = localStorage.getItem('local_technicians');
@@ -74,7 +75,7 @@ function App() {
   useEffect(() => {
     if (syncKey) {
       handleCloudSync('pull');
-      const interval = setInterval(() => handleCloudSync('pull'), 60000); // Auto-refresh a cada minuto
+      const interval = setInterval(() => handleCloudSync('pull'), 30000); // Auto-refresh a cada 30 segundos
       return () => clearInterval(interval);
     }
   }, [syncKey]);
@@ -91,21 +92,29 @@ function App() {
   const handleCloudSync = async (mode: 'push' | 'pull') => {
     if (!syncKey || isSyncing) return;
     setIsSyncing(true);
+    setSyncError(null);
     try {
       const url = `https://jsonblob.com/api/jsonBlob/${syncKey}`;
       
       if (mode === 'pull') {
-        const res = await fetch(url);
+        const res = await fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        });
         if (res.ok) {
           const data: CloudData = await res.json();
-          if (data && data.lastSync > lastSyncTime) {
-            setTechnicians(data.technicians || []);
-            setServices(data.services || []);
-            setVisores(data.visores || []);
-            setTickets((data.tickets || []).map(t => ({ ...t, date: new Date(t.date) })));
-            setDayStatuses((data.dayStatuses || []).map(d => ({ ...d, date: new Date(d.date) })));
+          // Pull apenas se os dados forem novos ou se for o primeiro sync da sessão
+          if (data && (data.lastSync > lastSyncTime || lastSyncTime === 0)) {
+            if (data.technicians) setTechnicians(data.technicians);
+            if (data.services) setServices(data.services);
+            if (data.visores) setVisores(data.visores);
+            if (data.tickets) setTickets(data.tickets.map(t => ({ ...t, date: new Date(t.date) })));
+            if (data.dayStatuses) setDayStatuses((data.dayStatuses || []).map(d => ({ ...d, date: new Date(d.date) })));
             setLastSyncTime(data.lastSync);
           }
+        } else if (res.status === 404) {
+           setSyncError("Chave Cloud não encontrada. Verifique se a chave está correta.");
+           setSyncKey(null);
+           localStorage.removeItem('cloud_sync_key');
         }
       } else {
         const payload: CloudData = {
@@ -113,15 +122,23 @@ function App() {
           tickets: tickets.map(t => ({ ...t, updatedAt: Date.now() })),
           lastSync: Date.now()
         };
-        await fetch(url, {
+        const res = await fetch(url, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
           body: JSON.stringify(payload)
         });
-        setLastSyncTime(payload.lastSync);
+        if (res.ok) {
+            setLastSyncTime(payload.lastSync);
+        } else {
+            throw new Error("Erro ao enviar dados.");
+        }
       }
     } catch (e) {
       console.error("Erro na sincronização:", e);
+      setSyncError("Sem ligação à Cloud. Verifique a internet.");
     } finally {
       setIsSyncing(false);
     }
@@ -129,24 +146,56 @@ function App() {
 
   const createNewSyncKey = async () => {
     setIsSyncing(true);
+    setSyncError(null);
     try {
-      const payload: CloudData = { technicians, services, visores, tickets, dayStatuses, lastSync: Date.now() };
+      const payload: CloudData = { 
+        technicians, 
+        services, 
+        visores, 
+        tickets, 
+        dayStatuses, 
+        lastSync: Date.now() 
+      };
+      
       const res = await fetch('https://jsonblob.com/api/jsonBlob', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
+
+      if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+
       const location = res.headers.get('Location');
       if (location) {
         const id = location.split('/').pop();
         if (id) {
           setSyncKey(id);
           localStorage.setItem('cloud_sync_key', id);
-          alert("Sincronização Cloud Ativada! Copie a sua chave nas definições.");
+          setLastSyncTime(payload.lastSync);
+          alert("Sincronização Cloud Ativada com Sucesso!");
+        } else {
+            throw new Error("ID de localização inválido.");
         }
+      } else {
+          // Fallback se o Location header não vier (alguns browsers/proxies)
+          const data = await res.json();
+          if (data && data.id) {
+             setSyncKey(data.id);
+             localStorage.setItem('cloud_sync_key', data.id);
+             setLastSyncTime(payload.lastSync);
+          } else {
+             throw new Error("Não foi possível obter a chave de sincronização.");
+          }
       }
-    } catch (e) {
-      alert("Falha ao criar chave cloud.");
+    } catch (e: any) {
+      console.error("Erro ao criar chave:", e);
+      alert(`Falha ao criar chave cloud: ${e.message}. Verifique a sua ligação à internet.`);
     } finally {
       setIsSyncing(false);
     }
@@ -179,11 +228,48 @@ function App() {
 
   if (!user) return <LoginScreen onLogin={setUser} />;
 
+  if (user.role === 'technician' && user.technicianId) {
+      const currentTech = technicians.find(t => t.id === user.technicianId);
+      return (
+          <div className="flex flex-col h-screen overflow-hidden">
+            <div className={`p-1 text-center text-[8px] font-black uppercase tracking-widest text-white shrink-0 ${syncKey ? (syncError ? 'bg-amber-500' : 'bg-emerald-600') : 'bg-slate-400'}`}>
+                {syncKey ? (syncError ? 'ERRO SYNC' : `LIGADO • ${format(new Date(lastSyncTime), 'HH:mm')}`) : 'MODO LOCAL'}
+            </div>
+            <MobileTechnicianView 
+                tickets={tickets} 
+                technicianId={user.technicianId} 
+                technician={currentTech!}
+                services={services} 
+                onUpdateStatus={(id, status) => handleUpdateTicket(id, { status })}
+                onViewDetails={(t) => { setEditingTicket(t); setIsTicketModalOpen(true); }}
+                onUpdateProfile={(updates) => {
+                    setTechnicians(prev => prev.map(t => t.id === user.technicianId ? {...t, ...updates} : t));
+                    if (syncKey) handleCloudSync('push');
+                }}
+                onLogout={() => setUser(null)}
+            />
+            <TicketFormModal 
+                isOpen={isTicketModalOpen} 
+                onClose={() => { setIsTicketModalOpen(false); setEditingTicket(null); }}
+                onSave={handleSaveTicket}
+                onUpdate={handleUpdateTicket}
+                technicians={technicians}
+                services={services}
+                visores={visores}
+                initialDate={new Date()}
+                selectedTechId={user.technicianId}
+                ticketToEdit={editingTicket}
+                isReadOnly={false}
+            />
+          </div>
+      );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden text-slate-800 font-sans antialiased">
-        <div className={`p-1 text-center text-[9px] font-black uppercase tracking-[0.2em] text-white z-50 transition-all flex items-center justify-center gap-2 ${syncKey ? 'bg-emerald-600' : 'bg-slate-400'}`}>
-            {syncKey ? <Cloud size={10} /> : <CloudOff size={10} />}
-            {syncKey ? `Sincronizado: ${format(new Date(lastSyncTime), 'HH:mm')}` : 'Modo Local - Dados guardados apenas neste browser'}
+        <div className={`p-1 text-center text-[9px] font-black uppercase tracking-[0.2em] text-white z-50 transition-all flex items-center justify-center gap-2 ${syncKey ? (syncError ? 'bg-amber-500' : 'bg-emerald-600') : 'bg-slate-400'}`}>
+            {syncKey ? (syncError ? <AlertCircle size={10} /> : <Cloud size={10} />) : <CloudOff size={10} />}
+            {syncKey ? (syncError || `Sincronizado: ${format(new Date(lastSyncTime), 'HH:mm')}`) : 'Modo Local - Dados guardados apenas neste browser'}
             {syncKey && <button onClick={() => handleCloudSync('pull')} className={`ml-2 ${isSyncing ? 'animate-spin' : ''}`}><RefreshCw size={10}/></button>}
         </div>
 
@@ -319,7 +405,11 @@ function App() {
             onAddVisor={(v) => { setVisores(prev => [...prev, v]); if(syncKey) handleCloudSync('push'); }}
             onRemoveVisor={(id) => { setVisores(prev => prev.filter(v => v.id !== id)); if(syncKey) handleCloudSync('push'); }}
             onUpdateTechnician={(id, updates) => { setTechnicians(prev => prev.map(t => t.id === id ? {...t, ...updates} : t)); if(syncKey) handleCloudSync('push'); }}
-            onSetSyncKey={(key) => { setSyncKey(key); localStorage.setItem('cloud_sync_key', key || ''); }}
+            onSetSyncKey={(key) => { 
+                setSyncKey(key); 
+                localStorage.setItem('cloud_sync_key', key || ''); 
+                if(key) { setLastSyncTime(0); handleCloudSync('pull'); } 
+            }}
             onCreateSyncKey={createNewSyncKey}
         />
 

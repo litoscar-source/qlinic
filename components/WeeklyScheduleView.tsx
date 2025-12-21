@@ -73,10 +73,17 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     setActiveMenu({ x: e.clientX, y: e.clientY, type: 'status', data: ticket });
   };
 
+  const isDarkColor = (colorClass: string) => {
+    const darkColors = ['bg-blue-600', 'bg-purple-600', 'bg-red-600', 'bg-slate-800', 'bg-slate-900', 'bg-indigo-600', 'bg-rose-500', 'bg-emerald-600'];
+    return darkColors.includes(colorClass);
+  };
+
   const getCardStyle = (ticket: Ticket, service: ServiceDefinition | undefined) => {
-    let baseStyle = `${service?.colorClass || 'bg-slate-50'} border shadow-sm transition-all duration-200 `;
-    let statusBorder = 'border-l-[4px]';
-    baseStyle += ' border-slate-400/50';
+    let baseStyle = `${service?.colorClass || 'bg-slate-100'} border shadow-md transition-all duration-200 `;
+    let statusBorder = 'border-l-[5px]';
+    
+    // Borda de contraste
+    baseStyle += ' border-black/10';
 
     switch (ticket.status) {
       case TicketStatus.RESOLVIDO: statusBorder += ' border-l-emerald-600'; break;
@@ -89,9 +96,11 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     return `${baseStyle} ${statusBorder}`;
   };
 
-  const getTextColor = (status: TicketStatus) => {
-    if (status === TicketStatus.NAO_CONFIRMADO) return 'text-rose-800';
-    if (status === TicketStatus.RESOLVIDO) return 'text-emerald-900';
+  const getTextColor = (ticket: Ticket, service: ServiceDefinition | undefined) => {
+    if (service && isDarkColor(service.colorClass)) return 'text-white';
+    
+    if (ticket.status === TicketStatus.NAO_CONFIRMADO) return 'text-rose-800';
+    if (ticket.status === TicketStatus.RESOLVIDO) return 'text-emerald-900';
     return 'text-slate-900';
   };
 
@@ -110,7 +119,6 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
     }
   };
 
-  // 160px para a coluna de técnicos, 5 colunas flexíveis e 2 colunas finas de 70px para fins de semana
   const gridTemplateColumns = `160px repeat(5, minmax(130px, 1fr)) repeat(2, 70px)`;
 
   return (
@@ -201,7 +209,8 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                     <div className={`flex-1 flex gap-1 ${isCompact ? 'flex-row items-center content-center h-full' : 'flex-col mt-1'}`}>
                                         {dayTechTickets.map(ticket => {
                                             const service = services.find(s => s.id === ticket.serviceId);
-                                            const textCls = getTextColor(ticket.status);
+                                            const textCls = getTextColor(ticket, service);
+                                            const isDark = service ? isDarkColor(service.colorClass) : false;
                                             
                                             return (
                                                 <div key={`${ticket.id}-${tech.id}`} draggable={!isReadOnly}
@@ -209,30 +218,30 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                                     onDragEnd={handleDragEnd}
                                                     onClick={(e) => { e.stopPropagation(); onEditTicket(ticket); }}
                                                     onContextMenu={(e) => handleStatusQuickChange(e, ticket)}
-                                                    className={`rounded shadow-sm relative font-sans ${getCardStyle(ticket, service)} ${isCompact ? 'p-0.5 h-[34px] flex-1 min-w-[100px] border-l-[3px]' : 'p-2 mb-0.5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 border-l-[6px]'}`}>
+                                                    className={`rounded shadow-md relative font-sans ${getCardStyle(ticket, service)} ${isCompact ? 'p-0.5 h-[34px] flex-1 min-w-[100px] border-l-[4px]' : 'p-2 mb-1 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 border-l-[6px]'}`}>
                                                     
                                                     <div className={`flex justify-between items-center ${isCompact ? 'mb-0' : 'mb-0.5'}`}>
-                                                        <div className={`flex items-center gap-1 font-bold ${isCompact ? 'text-[8px]' : 'text-[10px]'} ${textCls}`}>
+                                                        <div className={`flex items-center gap-1 font-black ${isCompact ? 'text-[8px]' : 'text-[10px]'} ${textCls}`}>
                                                             <Clock size={isCompact ? 8 : 10} className="shrink-0" /> {ticket.scheduledTime}
                                                         </div>
                                                         {!isCompact && (
-                                                            <MoreHorizontal size={10} className="text-slate-400" />
+                                                            <MoreHorizontal size={10} className={isDark ? 'text-white/50' : 'text-slate-400'} />
                                                         )}
                                                     </div>
 
-                                                    <p className={`uppercase tracking-tight truncate font-bold leading-tight ${isCompact ? 'text-[8px] max-w-[80px]' : 'text-[11px] mb-1'} ${textCls}`}>
+                                                    <p className={`uppercase tracking-tight truncate font-black leading-tight ${isCompact ? 'text-[8px] max-w-[80px]' : 'text-[11px] mb-1.5'} ${textCls}`}>
                                                         {ticket.customerName}
                                                     </p>
 
                                                     {!isCompact && !isWknd && (
-                                                      <div className="flex flex-col gap-0.5 bg-white/50 rounded px-1.5 py-1 border border-black/10">
+                                                      <div className={`flex flex-col gap-0.5 rounded px-1.5 py-1 border ${isDark ? 'bg-white/20 border-white/20' : 'bg-white/50 border-black/5'}`}>
                                                           <div className="flex items-center gap-1">
-                                                              <MapPin size={9} className="text-red-600 shrink-0" />
-                                                              <span className="text-slate-900 truncate uppercase font-bold text-[9px]">{ticket.locality || 'SEM LOCALIDADE'}</span>
+                                                              <MapPin size={9} className={isDark ? 'text-white' : 'text-red-600'} />
+                                                              <span className={`truncate uppercase font-black text-[9px] ${textCls}`}>{ticket.locality || 'SEM LOCALIDADE'}</span>
                                                           </div>
                                                           <div className="flex items-center gap-1">
-                                                              <FileText size={9} className="text-slate-600 shrink-0" />
-                                                              <span className="text-slate-700 uppercase font-bold truncate text-[9px]">{service?.name}</span>
+                                                              <FileText size={9} className={isDark ? 'text-white/80' : 'text-slate-600'} />
+                                                              <span className={`uppercase font-bold truncate text-[9px] ${textCls} opacity-80`}>{service?.name}</span>
                                                           </div>
                                                       </div>
                                                     )}

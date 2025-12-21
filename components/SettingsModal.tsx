@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Technician, ServiceDefinition, Visor } from '../types';
-import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock, Lock, Key, Cloud, Copy, RefreshCw, Smartphone } from 'lucide-react';
+import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock, Lock, Key, Cloud, Copy, RefreshCw, Smartphone, Palette } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,13 +22,16 @@ interface SettingsModalProps {
 }
 
 const COLOR_PALETTE = [
-  { name: 'Branco', class: 'bg-white', text: 'text-slate-900' },
-  { name: 'Azul Intenso', class: 'bg-blue-600', text: 'text-white' },
-  { name: 'Esmeralda', class: 'bg-emerald-600', text: 'text-white' },
-  { name: 'Âmbar', class: 'bg-amber-500', text: 'text-slate-900' },
-  { name: 'Roxo', class: 'bg-purple-600', text: 'text-white' },
-  { name: 'Vermelho', class: 'bg-red-600', text: 'text-white' },
-  { name: 'Cinzento Escuro', class: 'bg-slate-800', text: 'text-white' },
+  { name: 'Cinza', class: 'bg-slate-100' },
+  { name: 'Azul', class: 'bg-blue-600' },
+  { name: 'Esmeralda', class: 'bg-emerald-500' },
+  { name: 'Âmbar', class: 'bg-amber-500' },
+  { name: 'Roxo', class: 'bg-purple-600' },
+  { name: 'Vermelho', class: 'bg-red-600' },
+  { name: 'Ciano', class: 'bg-cyan-500' },
+  { name: 'Rosa', class: 'bg-rose-500' },
+  { name: 'Indigo', class: 'bg-indigo-600' },
+  { name: 'Preto', class: 'bg-slate-900' },
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -41,7 +44,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newTechPassword, setNewTechPassword] = useState('1234');
   const [newServiceName, setNewServiceName] = useState('');
   const [newServiceDuration, setNewServiceDuration] = useState(1);
-  const [newServiceColor, setNewServiceColor] = useState('bg-white');
+  const [newServiceColor, setNewServiceColor] = useState('bg-slate-100');
   const [newVisorName, setNewVisorName] = useState('');
   const [inputSyncKey, setInputSyncKey] = useState('');
 
@@ -69,6 +72,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       colorClass: newServiceColor
     });
     setNewServiceName('');
+    setNewServiceColor('bg-slate-100');
   };
 
   const handleAddVisor = (e: React.FormEvent) => {
@@ -83,6 +87,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         navigator.clipboard.writeText(syncKey);
         alert("Chave copiada! Use esta chave no telemóvel ou outro PC.");
     }
+  };
+
+  const handleConnectSync = () => {
+      const cleanKey = inputSyncKey.trim();
+      if (cleanKey) {
+          onSetSyncKey(cleanKey);
+          setInputSyncKey('');
+      } else {
+          alert("Por favor, introduza uma chave válida.");
+      }
   };
 
   return (
@@ -153,7 +167,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 <div className="flex-1 bg-white border-2 border-emerald-200 rounded-2xl px-6 py-4 font-black text-slate-900 tracking-widest text-sm overflow-hidden truncate">
                                     {syncKey}
                                 </div>
-                                <button onClick={copyKey} className="bg-emerald-600 text-white p-4 rounded-2xl hover:bg-emerald-700 shadow-lg active:scale-95 transition-all">
+                                <button onClick={copyKey} title="Copiar Chave" className="bg-emerald-600 text-white p-4 rounded-2xl hover:bg-emerald-700 shadow-lg active:scale-95 transition-all">
                                     <Copy size={24} />
                                 </button>
                             </div>
@@ -166,17 +180,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 <div className="bg-white p-6 rounded-3xl border border-emerald-100 shadow-sm flex flex-col items-center text-center gap-4">
                                     <Smartphone size={32} className="text-emerald-600" />
                                     <h4 className="text-sm font-black text-slate-900 uppercase">Já tenho uma chave</h4>
-                                    <p className="text-[10px] text-slate-500">Introduza a chave do seu outro dispositivo.</p>
-                                    <div className="w-full flex gap-2">
-                                        <input type="text" placeholder="Cole aqui..." className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none" value={inputSyncKey} onChange={(e) => setInputSyncKey(e.target.value)} />
-                                        <button onClick={() => onSetSyncKey(inputSyncKey)} className="bg-slate-900 text-white px-4 py-2 rounded-xl font-bold uppercase text-[10px]">Ligar</button>
+                                    <p className="text-[10px] text-slate-500">Introduza a chave do seu outro dispositivo para descarregar os dados.</p>
+                                    <div className="w-full flex flex-col gap-2">
+                                        <input type="text" placeholder="Cole a chave aqui..." className="w-full border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-500" value={inputSyncKey} onChange={(e) => setInputSyncKey(e.target.value)} />
+                                        <button onClick={handleConnectSync} className="w-full bg-slate-900 text-white px-4 py-3 rounded-xl font-bold uppercase text-[10px] shadow-lg">Ligar e Sincronizar</button>
                                     </div>
                                 </div>
                                 <div className="bg-emerald-600 p-6 rounded-3xl shadow-xl flex flex-col items-center text-center gap-4 text-white">
                                     <RefreshCw size={32} />
                                     <h4 className="text-sm font-black uppercase">Criar Nova Cloud</h4>
-                                    <p className="text-[10px] text-emerald-100">Iniciar um novo ecossistema partilhado.</p>
-                                    <button onClick={onCreateSyncKey} className="w-full bg-white text-emerald-600 py-3 rounded-xl font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all">Começar Agora</button>
+                                    <p className="text-[10px] text-emerald-100">Iniciar um novo ecossistema partilhado para a empresa.</p>
+                                    <button onClick={onCreateSyncKey} className="w-full bg-white text-emerald-600 py-4 rounded-xl font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all">Começar Agora</button>
                                 </div>
                             </div>
                         </div>
@@ -187,19 +201,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {activeTab === 'service' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <form onSubmit={handleAddService} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <input type="text" required placeholder="Nome do Serviço..." className="px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
-                        <input type="number" required className="px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newServiceDuration} onChange={(e) => setNewServiceDuration(Number(e.target.value))} />
+                <form onSubmit={handleAddService} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome do Procedimento</label>
+                            <input type="text" required placeholder="Ex: Manutenção, Urgência..." className="w-full px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Duração Padrão (Horas)</label>
+                            <input type="number" step="0.5" min="0.5" required className="w-full px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newServiceDuration} onChange={(e) => setNewServiceDuration(Number(e.target.value))} />
+                        </div>
                     </div>
-                    <button type="submit" className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest">Adicionar Serviço</button>
+                    
+                    <div className="space-y-3">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                            <Palette size={12} className="text-red-600" /> Cor de Identificação na Agenda
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {COLOR_PALETTE.map(color => (
+                                <button key={color.class} type="button" onClick={() => setNewServiceColor(color.class)}
+                                    className={`w-10 h-10 rounded-xl border-4 transition-all ${color.class} ${newServiceColor === color.class ? 'border-red-600 scale-110 shadow-lg' : 'border-white'}`}
+                                    title={color.name} />
+                            ))}
+                        </div>
+                    </div>
+
+                    <button type="submit" className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest shadow-xl shadow-red-100 active:scale-95 transition-all">
+                        Criar Novo Serviço
+                    </button>
                 </form>
-                {services.map(s => (
-                    <div key={s.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
-                        <span className="font-bold text-sm uppercase">{s.name}</span>
-                        <button onClick={() => onRemoveService(s.id)} className="text-slate-300 hover:text-red-600"><Trash2 size={20}/></button>
-                    </div>
-                ))}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {services.map(s => (
+                        <div key={s.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 hover:border-red-200 transition-colors group">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-4 h-10 rounded-full ${s.colorClass || 'bg-slate-100'} shadow-sm`} />
+                                <div>
+                                    <span className="font-bold text-sm uppercase text-slate-900">{s.name}</span>
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase">{s.defaultDuration} Horas Estimadas</p>
+                                </div>
+                            </div>
+                            <button onClick={() => onRemoveService(s.id)} className="text-slate-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100 p-2"><Trash2 size={20}/></button>
+                        </div>
+                    ))}
+                </div>
             </div>
           )}
 
@@ -209,12 +254,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <input type="text" required placeholder="Nome do Visor..." className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newVisorName} onChange={(e) => setNewVisorName(e.target.value)} />
                     <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px]">Adicionar</button>
                 </form>
-                {visores.map(v => (
-                    <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
-                        <span className="font-bold text-sm uppercase">{v.name}</span>
-                        <button onClick={() => onRemoveVisor(v.id)} className="text-slate-300 hover:text-red-600"><Trash2 size={20}/></button>
-                    </div>
-                ))}
+                <div className="grid grid-cols-2 gap-4">
+                    {visores.map(v => (
+                        <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                            <span className="font-bold text-sm uppercase">{v.name}</span>
+                            <button onClick={() => onRemoveVisor(v.id)} className="text-slate-300 hover:text-red-600"><Trash2 size={20}/></button>
+                        </div>
+                    ))}
+                </div>
             </div>
           )}
         </div>
