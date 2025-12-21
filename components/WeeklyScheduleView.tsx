@@ -82,11 +82,11 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
   const gridTemplateColumns = `160px repeat(5, minmax(130px, 1fr)) repeat(2, 70px)`;
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-300 flex flex-col h-full overflow-hidden select-none relative font-sans text-slate-900 antialiased">
+    <div className="bg-white rounded-xl shadow-md border border-slate-300 flex flex-col h-full overflow-hidden select-none relative font-sans text-slate-900 antialiased z-10">
       <div className="overflow-auto h-full relative custom-scrollbar">
         <div style={{ minWidth: '1050px' }}>
-            <div className="grid border-b border-slate-300 bg-slate-50 sticky top-0 z-20" style={{ gridTemplateColumns }}>
-                <div className="p-2 text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center border-r border-slate-300 bg-white z-30 sticky left-0 shadow-sm">
+            <div className="grid border-b border-slate-300 bg-slate-50 sticky top-0 z-40" style={{ gridTemplateColumns }}>
+                <div className="p-2 text-slate-500 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center border-r border-slate-300 bg-white z-50 sticky left-0 shadow-sm">
                     <Users size={12} className="mr-1.5 text-red-600" /> EQUIPA
                 </div>
                 {daysInWeek.map(day => (
@@ -102,7 +102,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
             <div className="divide-y divide-slate-200">
                 {technicians.map(tech => (
                     <div key={tech.id} className="grid group/row" style={{ gridTemplateColumns }}>
-                        <div className={`sticky left-0 z-10 bg-white border-r border-slate-300 flex items-center gap-2 shadow-sm group-hover/row:bg-slate-50 transition-all ${isCompact ? 'p-1 h-[42px]' : 'p-2 h-[150px]'}`}>
+                        <div className={`sticky left-0 z-30 bg-white border-r border-slate-300 flex items-center gap-2 shadow-sm group-hover/row:bg-slate-50 transition-all ${isCompact ? 'p-1 h-[42px]' : 'p-2 h-[150px]'}`}>
                             <div className={`rounded-full flex items-center justify-center text-white font-bold shrink-0 shadow-md ${tech.avatarColor} ${isCompact ? 'w-5 h-5 text-[8px]' : 'w-9 h-9 text-[11px]'}`}>
                                 {tech.name.substring(0, 2).toUpperCase()}
                             </div>
@@ -117,21 +117,25 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                 <div key={`${day.toISOString()}-${tech.id}`}
                                     className={`group/cell border-r border-slate-200 last:border-r-0 flex flex-col gap-1 relative overflow-hidden transition-colors 
                                     ${isCompact ? 'p-0.5 pb-4' : 'p-1.5 pb-8'} 
-                                    ${isWeekend(day) ? 'bg-slate-200/40' : (isOvernight ? 'bg-amber-50/30' : '')}`}
+                                    ${isWeekend(day) ? 'bg-slate-200/40' : (isOvernight ? 'bg-amber-50/40' : 'hover:bg-slate-50/80')}`}
                                     onContextMenu={(e) => handleContextMenu(e, day, tech.id)}
                                     onClick={() => onSelectDate(day)}>
                                     
-                                    {/* Overlay de Botões no Hover */}
+                                    {/* Botões rápidos no hover da célula */}
                                     {!isReadOnly && (
-                                        <div className="absolute top-1 right-1 flex gap-1 z-30 opacity-0 group-hover/cell:opacity-100 transition-opacity">
-                                            <button onClick={(e) => { e.stopPropagation(); onToggleOvernight?.(day, tech.id); }}
-                                                className={`p-1 rounded shadow-sm border transition-all ${isOvernight ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-400 hover:text-amber-500 border-slate-200'}`}
-                                                title="Alternar Dormida">
+                                        <div className="absolute top-1 right-1 flex gap-1 z-30 opacity-0 group-hover/cell:opacity-100 transition-all pointer-events-auto">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); onToggleOvernight?.(day, tech.id); }}
+                                                className={`p-1 rounded shadow-md border transition-all ${isOvernight ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-400 hover:text-amber-500 border-slate-200 hover:bg-amber-50'}`}
+                                                title="Marcar Dormida"
+                                            >
                                                 <Moon size={isCompact ? 10 : 12} fill={isOvernight ? "currentColor" : "none"} />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); onNewTicket?.(day, tech.id); }}
-                                                className="p-1 rounded bg-red-600 text-white shadow-sm border border-red-700 hover:bg-red-700 transition-all"
-                                                title="Novo Serviço">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); onNewTicket?.(day, tech.id); }}
+                                                className="p-1 rounded bg-red-600 text-white shadow-md border border-red-700 hover:bg-red-700 transition-all active:scale-90"
+                                                title="Nova Intervenção"
+                                            >
                                                 <Plus size={isCompact ? 10 : 12} />
                                             </button>
                                         </div>
@@ -140,7 +144,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                     {isOvernight && (
                                         <div 
                                             onClick={(e) => { e.stopPropagation(); onToggleOvernight?.(day, tech.id); }}
-                                            className="absolute bottom-0 left-0 right-0 bg-amber-500 text-white text-[9px] font-bold py-1.5 flex items-center justify-center gap-1.5 z-10 uppercase tracking-widest cursor-pointer hover:bg-amber-600 transition-colors shadow-[0_-2px_10px_rgba(245,158,11,0.3)]">
+                                            className="absolute bottom-0 left-0 right-0 bg-amber-500 text-white text-[9px] font-bold py-1.5 flex items-center justify-center gap-1.5 z-20 uppercase tracking-widest cursor-pointer hover:bg-amber-600 transition-colors shadow-lg">
                                             <Moon size={10} fill="currentColor" /> DORMIDA
                                         </div>
                                     )}
@@ -187,33 +191,43 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
         </div>
       </div>
 
-      {/* Menu de Contexto (Botão Direito) */}
+      {/* Menu de Contexto (Botão Direito) - Fora da hierarquia de transição para evitar bugs de visualização */}
       {contextMenu && (
         <div 
-          className="fixed z-[100] bg-white border border-slate-200 shadow-2xl rounded-2xl p-2 min-w-[200px] animate-in fade-in zoom-in duration-150"
+          className="fixed z-[1000] bg-white border border-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-2xl p-2 min-w-[220px] animate-in fade-in zoom-in duration-150"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-3 py-2 border-b border-slate-100 mb-1">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Opções de Célula</p>
-            <p className="text-[10px] font-bold text-slate-900">{format(contextMenu.day, "dd/MM/yyyy")}</p>
+          <div className="px-3 py-2 border-b border-slate-100 mb-2">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Opções Avançadas</p>
+            <p className="text-[10px] font-bold text-slate-900">{format(contextMenu.day, "EEEE, dd 'de' MMMM", { locale: pt })}</p>
           </div>
+          
           <button 
             onClick={() => { onNewTicket?.(contextMenu.day, contextMenu.techId); setContextMenu(null); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-xl transition-all text-[11px] font-bold uppercase tracking-tight"
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-xl transition-all text-[11px] font-bold uppercase tracking-tight group"
           >
-            <Plus size={16} /> Adicionar Serviço
+            <div className="bg-red-100 p-1.5 rounded-lg group-hover:bg-red-600 group-hover:text-white transition-colors">
+              <Plus size={14} />
+            </div>
+            Adicionar Novo Serviço
           </button>
+          
           <button 
             onClick={() => { onToggleOvernight?.(contextMenu.day, contextMenu.techId); setContextMenu(null); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-amber-50 text-slate-700 hover:text-amber-600 rounded-xl transition-all text-[11px] font-bold uppercase tracking-tight"
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50 text-slate-700 hover:text-amber-600 rounded-xl transition-all text-[11px] font-bold uppercase tracking-tight group"
           >
-            <Moon size={16} /> Alternar Dormida
+            <div className="bg-amber-100 p-1.5 rounded-lg group-hover:bg-amber-600 group-hover:text-white transition-colors">
+              <Moon size={14} />
+            </div>
+            Alternar Dormida
           </button>
-          <div className="my-1 border-t border-slate-100" />
+
+          <div className="my-2 border-t border-slate-100" />
+          
           <button 
             onClick={() => setContextMenu(null)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 text-slate-400 rounded-xl transition-all text-[11px] font-bold uppercase tracking-tight"
+            className="w-full flex items-center justify-center py-2 text-[9px] font-black text-slate-300 hover:text-slate-500 uppercase tracking-[0.2em] transition-colors"
           >
             Fechar Menu
           </button>

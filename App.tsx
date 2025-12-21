@@ -97,7 +97,7 @@ function App() {
       if (mode === 'pull') {
         const res = await fetch(url, { 
             method: 'GET',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+            headers: { 'Accept': 'application/json' }
         });
         if (res.ok) {
           const data: CloudData = await res.json();
@@ -110,7 +110,7 @@ function App() {
             setLastSyncTime(data.lastSync);
           }
         } else if (res.status === 404) {
-           setSyncError("Chave inválida.");
+           setSyncError("Chave inválida ou removida.");
         }
       } else {
         const payload: CloudData = {
@@ -120,7 +120,7 @@ function App() {
         };
         const res = await fetch(url, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         if (res.ok) setLastSyncTime(payload.lastSync);
@@ -141,9 +141,9 @@ function App() {
         lastSync: Date.now() 
       };
       
+      // Tentativa de POST simplificada para evitar problemas de preflight/CORS
       const res = await fetch('https://jsonblob.com/api/jsonBlob', {
         method: 'POST',
-        mode: 'cors',
         headers: { 
             'Content-Type': 'application/json',
             'Accept': 'application/json'
@@ -152,39 +152,30 @@ function App() {
       });
 
       if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`Servidor: ${res.status} - ${errText}`);
+        throw new Error(`Erro API: ${res.status}`);
       }
 
-      let id = "";
-      // Tentativa 1: Header Location (o browser pode bloquear por CORS)
+      // O JsonBlob geralmente retorna a URL completa no Header Location ou o ID no corpo
       const location = res.headers.get('Location');
-      if (location) {
-        id = location.split('/').pop() || "";
-      } 
-      
-      // Tentativa 2: Ler corpo (JsonBlob costuma retornar o ID no corpo se solicitado)
+      let id = location ? location.split('/').pop() : "";
+
       if (!id) {
-          try {
-              const data = await res.json();
-              if (data && data.id) id = data.id;
-              // Se a API retornar a URL completa no corpo
-              else if (typeof data === 'string' && data.includes('/')) id = data.split('/').pop() || "";
-          } catch(e) {}
+          const data = await res.json();
+          if (data && data.id) id = data.id;
+          else if (typeof data === 'string' && data.includes('/')) id = data.split('/').pop();
       }
 
       if (id) {
         setSyncKey(id);
         localStorage.setItem('cloud_sync_key', id);
         setLastSyncTime(payload.lastSync);
-        alert("Cloud ativada com sucesso!");
+        alert("Cloud ativada com sucesso! Partilhe a chave com a equipa.");
       } else {
-        throw new Error("Não foi possível capturar o ID da chave. Tente novamente.");
+        throw new Error("Não foi possível gerar a chave. Tente exportar um backup manual.");
       }
     } catch (e: any) {
       console.error("Cloud Error:", e);
-      const msg = e.message.includes('fetch') ? "Falha de Rede. Verifique se tem AdBlockers ou Firewall a bloquear o jsonblob.com" : e.message;
-      alert(`Erro na Cloud: ${msg}`);
+      alert(`Falha ao ativar Cloud. Verifique se tem AdBlockers ou VPN a bloquear o jsonblob.com. Pode continuar em modo offline e usar o Backup manual.`);
     } finally {
       setIsSyncing(false);
     }
@@ -288,16 +279,16 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden text-slate-800 font-sans antialiased">
-        <div className={`p-1 text-center text-[9px] font-black uppercase tracking-[0.2em] text-white z-50 transition-all flex items-center justify-center gap-2 ${syncKey ? (syncError ? 'bg-amber-500' : 'bg-emerald-600') : 'bg-slate-400'}`}>
+        <div className={`p-1 text-center text-[9px] font-black uppercase tracking-[0.2em] text-white z-[60] transition-all flex items-center justify-center gap-2 ${syncKey ? (syncError ? 'bg-amber-500' : 'bg-emerald-600') : 'bg-slate-400'}`}>
             {syncKey ? (syncError ? <AlertCircle size={10} /> : <Cloud size={10} />) : <CloudOff size={10} />}
-            {syncKey ? (syncError || `Sincronizado: ${format(new Date(lastSyncTime), 'HH:mm')}`) : 'Modo Local - Dados guardados apenas neste browser'}
+            {syncKey ? (syncError || `Sincronizado: ${format(new Date(lastSyncTime), 'HH:mm')}`) : 'Modo Local'}
             {syncKey && <button onClick={() => handleCloudSync('pull')} className={`ml-2 ${isSyncing ? 'animate-spin' : ''}`}><RefreshCw size={10}/></button>}
         </div>
 
-        <header className="bg-white border-b border-slate-200 shadow-sm shrink-0 z-40">
+        <header className="bg-white border-b border-slate-200 shadow-sm shrink-0 z-50">
             <div className="px-4 py-2 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center shadow-sm cursor-pointer" onClick={() => setCurrentDate(new Date())}>
+                    <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center shadow-sm cursor-pointer hover:scale-110 transition-transform" onClick={() => setCurrentDate(new Date())}>
                          <span className="text-white text-lg font-bold">M</span>
                     </div>
                     <div>
@@ -315,25 +306,25 @@ function App() {
                         <button onClick={() => setCurrentDate(addWeeks(currentDate, 1))} className="p-1 hover:bg-white rounded-md text-slate-600"><ChevronRight size={16}/></button>
                     </div>
                     <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200 ml-2">
-                         <button onClick={() => setViewMode('week')} className={`px-3 py-1 rounded-md text-[9px] uppercase tracking-widest transition-all font-bold flex items-center gap-1.5 ${viewMode === 'week' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}><LayoutGrid size={12}/> Semana</button>
-                         <button onClick={() => setViewMode('month')} className={`px-3 py-1 rounded-md text-[9px] uppercase tracking-widest transition-all font-bold flex items-center gap-1.5 ${viewMode === 'month' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}><Calendar size={12}/> Mês</button>
-                         <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-[9px] uppercase tracking-widest transition-all font-bold flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}><List size={12}/> Lista</button>
+                         <button onClick={() => setViewMode('week')} className={`px-3 py-1 rounded-md text-[9px] uppercase tracking-widest transition-all font-bold flex items-center gap-1.5 ${viewMode === 'week' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><LayoutGrid size={12}/> Semana</button>
+                         <button onClick={() => setViewMode('month')} className={`px-3 py-1 rounded-md text-[9px] uppercase tracking-widest transition-all font-bold flex items-center gap-1.5 ${viewMode === 'month' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Calendar size={12}/> Mês</button>
+                         <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-[9px] uppercase tracking-widest transition-all font-bold flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><List size={12}/> Lista</button>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                    <button onClick={() => setIsReportsModalOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"><FileBarChart size={18} /></button>
+                    <button onClick={() => setIsReportsModalOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"><FileBarChart size={18} /></button>
                     {user.role === 'admin' && (
-                        <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"><Settings size={18} /></button>
+                        <button onClick={() => setIsSettingsModalOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"><Settings size={18} /></button>
                     )}
                     <button onClick={() => { setEditingTicket(null); setIsTicketModalOpen(true); }} className="bg-red-600 text-white hover:bg-red-700 px-4 py-1.5 rounded shadow shadow-red-200 font-bold text-[10px] uppercase tracking-widest ml-2 transition-all active:scale-95">Novo</button>
-                    <button onClick={() => setUser(null)} className="p-2 text-slate-400 hover:text-slate-600 ml-2"><LogOut size={18} /></button>
+                    <button onClick={() => setUser(null)} className="p-2 text-slate-400 hover:text-slate-600 ml-2 transition-colors"><LogOut size={18} /></button>
                 </div>
             </div>
         </header>
 
         <main className="flex-1 flex flex-col overflow-hidden p-3 gap-3">
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-hidden flex flex-col relative">
                {viewMode === 'week' ? (
                    <WeeklyScheduleView 
                     currentDate={currentDate}
@@ -372,7 +363,7 @@ function App() {
                             <Route size={14} className="text-red-600" />
                             <span className="text-slate-700 text-[10px] uppercase tracking-widest font-bold">{format(selectedDate, "EEEE, d 'de' MMMM", { locale: pt })}</span>
                         </div>
-                        <button onClick={() => setIsCompactView(!isCompactView)} className={`flex items-center gap-1.5 px-3 py-1 rounded text-[9px] uppercase tracking-widest font-bold transition-all border ${isCompactView ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-slate-700 border-slate-300'}`}>
+                        <button onClick={() => setIsCompactView(!isCompactView)} className={`flex items-center gap-1.5 px-3 py-1 rounded text-[9px] uppercase tracking-widest font-bold transition-all border ${isCompactView ? 'bg-blue-600 text-white border-blue-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>
                             {isCompactView ? <Maximize2 size={12} /> : <Minimize2 size={12} />} {isCompactView ? 'Vista Normal' : 'Compactar'}
                         </button>
                    </div>
@@ -386,6 +377,9 @@ function App() {
                                         <span className="text-red-600 mr-2">{tick.scheduledTime}</span> {tick.customerName}
                                     </div>
                                 ))}
+                                {tickets.filter(t => isSameDay(t.date, selectedDate)).length === 0 && (
+                                    <p className="text-[10px] text-slate-300 italic py-2">Sem marcações para hoje.</p>
+                                )}
                             </div>
                         </div>
                         <div className="col-span-3 h-full overflow-hidden">
