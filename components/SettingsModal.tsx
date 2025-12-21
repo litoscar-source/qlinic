@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Technician, ServiceDefinition, Visor } from '../types';
-import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock, Lock, Key } from 'lucide-react';
+import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock, Lock, Key, Cloud, Copy, RefreshCw, Smartphone } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -9,6 +9,7 @@ interface SettingsModalProps {
   technicians: Technician[];
   services: ServiceDefinition[];
   visores: Visor[];
+  syncKey: string | null;
   onAddTechnician: (tech: Technician) => void;
   onRemoveTechnician: (id: string) => void;
   onAddService: (service: ServiceDefinition) => void;
@@ -16,6 +17,8 @@ interface SettingsModalProps {
   onAddVisor: (visor: Visor) => void;
   onRemoveVisor: (id: string) => void;
   onUpdateTechnician?: (id: string, updates: Partial<Technician>) => void;
+  onSetSyncKey: (key: string | null) => void;
+  onCreateSyncKey: () => void;
 }
 
 const COLOR_PALETTE = [
@@ -26,298 +29,192 @@ const COLOR_PALETTE = [
   { name: 'Roxo', class: 'bg-purple-600', text: 'text-white' },
   { name: 'Vermelho', class: 'bg-red-600', text: 'text-white' },
   { name: 'Cinzento Escuro', class: 'bg-slate-800', text: 'text-white' },
-  { name: 'Indigo', class: 'bg-indigo-600', text: 'text-white' },
-  { name: 'Laranja', class: 'bg-orange-500', text: 'text-white' },
-  { name: 'Ciano', class: 'bg-cyan-500', text: 'text-slate-900' },
-  { name: 'Verde Lima', class: 'bg-lime-400', text: 'text-slate-900' },
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
-  isOpen,
-  onClose,
-  technicians,
-  services,
-  visores,
-  onAddTechnician,
-  onRemoveTechnician,
-  onAddService,
-  onRemoveService,
-  onAddVisor,
-  onRemoveVisor,
-  onUpdateTechnician
+  isOpen, onClose, technicians, services, visores, syncKey,
+  onAddTechnician, onRemoveTechnician, onAddService, onRemoveService,
+  onAddVisor, onRemoveVisor, onUpdateTechnician, onSetSyncKey, onCreateSyncKey
 }) => {
-  const [activeTab, setActiveTab] = useState<'tech' | 'service' | 'visor'>('tech');
+  const [activeTab, setActiveTab] = useState<'tech' | 'service' | 'visor' | 'cloud'>('tech');
   const [newTechName, setNewTechName] = useState('');
   const [newTechPassword, setNewTechPassword] = useState('1234');
   const [newServiceName, setNewServiceName] = useState('');
   const [newServiceDuration, setNewServiceDuration] = useState(1);
   const [newServiceColor, setNewServiceColor] = useState('bg-white');
   const [newVisorName, setNewVisorName] = useState('');
+  const [inputSyncKey, setInputSyncKey] = useState('');
 
   if (!isOpen) return null;
 
   const handleAddTech = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTechName) return;
-    const colors = ['bg-blue-600', 'bg-emerald-600', 'bg-red-600', 'bg-amber-600', 'bg-purple-600'];
     onAddTechnician({
-      id: Date.now().toString(),
+      id: `tech-${Date.now()}`,
       name: newTechName,
       password: newTechPassword,
-      avatarColor: colors[Math.floor(Math.random() * colors.length)]
+      avatarColor: COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)].class
     });
     setNewTechName('');
-    setNewTechPassword('1234');
-  };
-
-  const handleUpdatePassword = (id: string) => {
-      const newPwd = window.prompt("Definir nova palavra-passe para o técnico:");
-      if (newPwd && onUpdateTechnician) {
-          onUpdateTechnician(id, { password: newPwd });
-          alert("Palavra-passe atualizada com sucesso.");
-      }
   };
 
   const handleAddService = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newServiceName) return;
     onAddService({
-      id: Date.now().toString(),
+      id: `svc-${Date.now()}`,
       name: newServiceName,
       defaultDuration: Number(newServiceDuration),
       colorClass: newServiceColor
     });
     setNewServiceName('');
-    setNewServiceDuration(1);
-    setNewServiceColor('bg-white');
   };
 
   const handleAddVisor = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newVisorName) return;
-    onAddVisor({
-      id: Date.now().toString(),
-      name: newVisorName
-    });
+    onAddVisor({ id: `vis-${Date.now()}`, name: newVisorName });
     setNewVisorName('');
   };
 
-  const isColorDark = (colorClass: string) => {
-      const darkClasses = ['bg-blue-600', 'bg-emerald-600', 'bg-purple-600', 'bg-red-600', 'bg-slate-800', 'bg-indigo-600', 'bg-orange-500'];
-      return darkClasses.includes(colorClass);
+  const copyKey = () => {
+    if (syncKey) {
+        navigator.clipboard.writeText(syncKey);
+        alert("Chave copiada! Use esta chave no telemóvel ou outro PC.");
+    }
   };
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] w-full max-w-4xl overflow-hidden flex flex-col h-[750px] border border-slate-200">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-[750px] border border-slate-200">
         
-        <div className="flex justify-between items-center p-8 border-b border-slate-100 bg-slate-50">
+        <div className="flex justify-between items-center p-8 border-b border-slate-100 bg-slate-50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="bg-slate-900 p-2 rounded-xl shadow-lg">
                <Briefcase className="text-white" size={24} />
             </div>
             <div>
-               <h2 className="text-2xl text-slate-900 font-bold uppercase tracking-tight">Definições Operacionais</h2>
-               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Configuração de Agentes, Serviços e Logística</p>
+               <h2 className="text-2xl text-slate-900 font-bold uppercase tracking-tight">Definições</h2>
+               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Configuração do Sistema</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-red-600 transition-all p-2 bg-white rounded-full border border-slate-200 shadow-sm">
+          <button onClick={onClose} className="text-slate-400 hover:text-red-600 transition-all p-2 bg-white rounded-full border border-slate-200">
             <X size={24} />
           </button>
         </div>
 
-        <div className="flex border-b border-slate-200 bg-white">
-          <button
-            onClick={() => setActiveTab('tech')}
-            className={`flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.3em] border-b-4 transition-all flex items-center justify-center gap-3 ${
-              activeTab === 'tech' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400 hover:bg-slate-50'
-            }`}
-          >
-            <User size={18} /> Técnicos
-          </button>
-          <button
-            onClick={() => setActiveTab('service')}
-            className={`flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.3em] border-b-4 transition-all flex items-center justify-center gap-3 ${
-              activeTab === 'service' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400 hover:bg-slate-50'
-            }`}
-          >
-            <Briefcase size={18} /> Serviços
-          </button>
-          <button
-            onClick={() => setActiveTab('visor')}
-            className={`flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.3em] border-b-4 transition-all flex items-center justify-center gap-3 ${
-              activeTab === 'visor' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400 hover:bg-slate-50'
-            }`}
-          >
-            <Monitor size={18} /> Visores
-          </button>
+        <div className="flex border-b border-slate-200 bg-white shrink-0">
+          <button onClick={() => setActiveTab('tech')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest border-b-4 ${activeTab === 'tech' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400'}`}>Técnicos</button>
+          <button onClick={() => setActiveTab('service')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest border-b-4 ${activeTab === 'service' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400'}`}>Serviços</button>
+          <button onClick={() => setActiveTab('visor')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest border-b-4 ${activeTab === 'visor' ? 'border-red-600 text-red-600 bg-red-50/20' : 'border-transparent text-slate-400'}`}>Visores</button>
+          <button onClick={() => setActiveTab('cloud')} className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-widest border-b-4 ${activeTab === 'cloud' ? 'border-emerald-600 text-emerald-600 bg-emerald-50/20' : 'border-transparent text-slate-400'}`}>Cloud Sync</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-10 bg-white custom-scrollbar">
-          {activeTab === 'tech' ? (
+          {activeTab === 'tech' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <form onSubmit={handleAddTech} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-inner space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome do Técnico</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Nome completo..."
-                          className="w-full px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
-                          value={newTechName}
-                          onChange={(e) => setNewTechName(e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha Inicial</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Ex: 1234"
-                          className="w-full px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
-                          value={newTechPassword}
-                          onChange={(e) => setNewTechPassword(e.target.value)}
-                        />
-                    </div>
+              <form onSubmit={handleAddTech} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <input type="text" required placeholder="Nome do Técnico..." className="px-6 py-4 border border-slate-300 rounded-2xl outline-none font-bold bg-white text-slate-900" value={newTechName} onChange={(e) => setNewTechName(e.target.value)} />
+                    <input type="text" required placeholder="PIN..." className="px-6 py-4 border border-slate-300 rounded-2xl outline-none font-bold bg-white text-slate-900" value={newTechPassword} onChange={(e) => setNewTechPassword(e.target.value)} />
                 </div>
-                <button type="submit" className="w-full py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 flex items-center justify-center gap-3 transition-all font-bold uppercase text-[11px] tracking-widest shadow-xl shadow-red-200 active:scale-95">
-                  <Plus size={20} /> Registar Novo Técnico
-                </button>
+                <button type="submit" className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest shadow-xl">Adicionar Técnico</button>
               </form>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {technicians.map(tech => (
-                  <div key={tech.id} className="flex items-center justify-between p-5 bg-white rounded-2xl border border-slate-200 shadow-sm group hover:border-red-300 hover:shadow-md transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${tech.avatarColor}`}>
-                        {tech.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-slate-900 font-bold uppercase tracking-tight text-sm">{tech.name}</span>
-                        <span className="text-[10px] text-slate-400 font-bold">PIN: {tech.password || '1234'}</span>
-                      </div>
+                  <div key={tech.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full ${tech.avatarColor} text-white flex items-center justify-center font-bold`}>{tech.name.substring(0,2).toUpperCase()}</div>
+                      <div className="flex flex-col"><span className="text-sm font-bold uppercase">{tech.name}</span><span className="text-[10px] text-slate-400">PIN: {tech.password}</span></div>
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={() => handleUpdatePassword(tech.id)} className="text-slate-300 hover:text-blue-600 p-2 transition-all hover:bg-blue-50 rounded-lg" title="Alterar Senha">
-                          <Key size={18} />
-                        </button>
-                        <button onClick={() => onRemoveTechnician(tech.id)} className="text-slate-300 hover:text-red-600 p-2 transition-all hover:bg-red-50 rounded-lg">
-                          <Trash2 size={20} />
-                        </button>
-                    </div>
+                    <button onClick={() => onRemoveTechnician(tech.id)} className="text-slate-300 hover:text-red-600 transition-all"><Trash2 size={20} /></button>
                   </div>
                 ))}
               </div>
             </div>
-          ) : activeTab === 'service' ? (
-            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <form onSubmit={handleAddService} className="bg-slate-50 p-8 rounded-[2rem] border border-slate-200 shadow-inner space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Designação do Serviço</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: Instalação de Sistema Laser"
-                      className="w-full px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
-                      value={newServiceName}
-                      onChange={(e) => setNewServiceName(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 ml-1">Média Horas</label>
-                    <input
-                      type="number"
-                      min="0.5"
-                      step="0.5"
-                      required
-                      className="w-full px-6 py-4 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
-                      value={newServiceDuration}
-                      onChange={(e) => setNewServiceDuration(Number(e.target.value))}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Cor Identificativa na Agenda</label>
-                  <div className="flex flex-wrap gap-3">
-                    {COLOR_PALETTE.map(color => (
-                      <button
-                        key={color.class}
-                        type="button"
-                        onClick={() => setNewServiceColor(color.class)}
-                        className={`w-14 h-14 rounded-2xl border-4 transition-all flex items-center justify-center shadow-md ${color.class} ${newServiceColor === color.class ? 'border-red-600 ring-4 ring-red-50 scale-110' : 'border-white hover:border-slate-300'}`}
-                      >
-                        {newServiceColor === color.class && <Check size={24} className={color.text} />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+          )}
 
-                <div className="flex justify-end border-t border-slate-200 pt-6">
-                    <button type="submit" className="px-12 py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 uppercase tracking-[0.2em] text-[11px] font-bold flex items-center gap-3 transition-all shadow-2xl shadow-red-200 active:scale-95">
-                        <Plus size={20} /> Criar Novo Serviço
-                    </button>
-                </div>
-              </form>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
-                {services.map(service => {
-                  const isDark = isColorDark(service.colorClass);
-                  return (
-                    <div key={service.id} className={`flex items-center justify-between p-6 rounded-[1.5rem] border-2 shadow-md transition-all ${service.colorClass} ${isDark ? 'border-transparent' : 'border-slate-100'}`}>
-                      <div className="flex flex-col">
-                        <span className={`font-bold uppercase tracking-widest text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{service.name}</span>
-                        <span className={`text-[10px] font-bold uppercase opacity-80 flex items-center gap-2 mt-1 ${isDark ? 'text-white' : 'text-slate-500'}`}>
-                            <Clock size={12} /> {service.defaultDuration} horas estimadas
-                        </span>
-                      </div>
-                      <button onClick={() => onRemoveService(service.id)} className={`p-3 rounded-xl transition-all ${isDark ? 'text-white/40 hover:text-white hover:bg-white/20' : 'text-slate-300 hover:text-red-600 hover:bg-red-50'}`}>
-                        <Trash2 size={22} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
+          {activeTab === 'cloud' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100 flex items-start gap-4 mb-4">
-                 <Info className="text-blue-500 shrink-0 mt-1" size={20} />
-                 <p className="text-xs text-blue-700 font-medium leading-relaxed">
-                    Os visores registados aqui ficarão disponíveis para seleção exclusiva em serviços do tipo <strong>"Reconstrução"</strong>. Estes dados são vitais para o relatório de picking de armazém.
-                 </p>
-              </div>
-
-              <form onSubmit={handleAddVisor} className="flex gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-inner">
-                <input
-                  type="text"
-                  placeholder="Código ou Nome do Visor (Ex: Visor LED G5)..."
-                  className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
-                  value={newVisorName}
-                  onChange={(e) => setNewVisorName(e.target.value)}
-                />
-                <button type="submit" className="px-10 py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 flex items-center gap-3 transition-all font-bold uppercase text-[11px] tracking-widest shadow-xl shadow-red-200 active:scale-95">
-                  <Plus size={20} /> Adicionar
-                </button>
-              </form>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {visores.map(visor => (
-                  <div key={visor.id} className="flex items-center justify-between p-5 bg-white rounded-2xl border border-slate-200 shadow-sm group hover:border-blue-300 hover:shadow-md transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-blue-600 p-3 rounded-xl text-white shadow-md">
-                        <Monitor size={20} />
-                      </div>
-                      <span className="text-slate-900 font-bold uppercase tracking-tight text-sm">{visor.name}</span>
+                <div className="bg-emerald-50 p-8 rounded-[2.5rem] border border-emerald-100 space-y-6">
+                    <div className="flex items-start gap-4">
+                        <div className="bg-emerald-600 p-3 rounded-2xl text-white shadow-lg"><Cloud size={24}/></div>
+                        <div>
+                            <h3 className="text-xl font-black text-emerald-900 uppercase tracking-tight">Sincronização Cloud Ativa</h3>
+                            <p className="text-xs text-emerald-700 mt-1 font-medium leading-relaxed">Permite que vários computadores e telemóveis vejam os mesmos dados em tempo real. Basta usar a mesma chave em todos os dispositivos.</p>
+                        </div>
                     </div>
-                    <button onClick={() => onRemoveVisor(visor.id)} className="text-slate-300 hover:text-red-600 p-2 transition-all hover:bg-red-50 rounded-lg">
-                      <Trash2 size={20} />
-                    </button>
-                  </div>
+
+                    {syncKey ? (
+                        <div className="space-y-4 pt-4 border-t border-emerald-200">
+                            <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest ml-1">A sua Chave de Sincronização Privada</label>
+                            <div className="flex gap-2">
+                                <div className="flex-1 bg-white border-2 border-emerald-200 rounded-2xl px-6 py-4 font-black text-slate-900 tracking-widest text-sm overflow-hidden truncate">
+                                    {syncKey}
+                                </div>
+                                <button onClick={copyKey} className="bg-emerald-600 text-white p-4 rounded-2xl hover:bg-emerald-700 shadow-lg active:scale-95 transition-all">
+                                    <Copy size={24} />
+                                </button>
+                            </div>
+                            <p className="text-[10px] font-bold text-emerald-500 italic">* Guarde esta chave! Sem ela não conseguirá ligar novos equipamentos.</p>
+                            <button onClick={() => { if(confirm("Desativar cloud? Os dados ficarão apenas neste PC.")) onSetSyncKey(null); }} className="text-xs text-rose-600 font-black uppercase tracking-widest hover:underline mt-4">Desativar Cloud neste dispositivo</button>
+                        </div>
+                    ) : (
+                        <div className="space-y-6 pt-4 border-t border-emerald-200">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-white p-6 rounded-3xl border border-emerald-100 shadow-sm flex flex-col items-center text-center gap-4">
+                                    <Smartphone size={32} className="text-emerald-600" />
+                                    <h4 className="text-sm font-black text-slate-900 uppercase">Já tenho uma chave</h4>
+                                    <p className="text-[10px] text-slate-500">Introduza a chave do seu outro dispositivo.</p>
+                                    <div className="w-full flex gap-2">
+                                        <input type="text" placeholder="Cole aqui..." className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none" value={inputSyncKey} onChange={(e) => setInputSyncKey(e.target.value)} />
+                                        <button onClick={() => onSetSyncKey(inputSyncKey)} className="bg-slate-900 text-white px-4 py-2 rounded-xl font-bold uppercase text-[10px]">Ligar</button>
+                                    </div>
+                                </div>
+                                <div className="bg-emerald-600 p-6 rounded-3xl shadow-xl flex flex-col items-center text-center gap-4 text-white">
+                                    <RefreshCw size={32} />
+                                    <h4 className="text-sm font-black uppercase">Criar Nova Cloud</h4>
+                                    <p className="text-[10px] text-emerald-100">Iniciar um novo ecossistema partilhado.</p>
+                                    <button onClick={onCreateSyncKey} className="w-full bg-white text-emerald-600 py-3 rounded-xl font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all">Começar Agora</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+          )}
+
+          {activeTab === 'service' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddService} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <input type="text" required placeholder="Nome do Serviço..." className="px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
+                        <input type="number" required className="px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newServiceDuration} onChange={(e) => setNewServiceDuration(Number(e.target.value))} />
+                    </div>
+                    <button type="submit" className="w-full py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest">Adicionar Serviço</button>
+                </form>
+                {services.map(s => (
+                    <div key={s.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                        <span className="font-bold text-sm uppercase">{s.name}</span>
+                        <button onClick={() => onRemoveService(s.id)} className="text-slate-300 hover:text-red-600"><Trash2 size={20}/></button>
+                    </div>
                 ))}
-              </div>
+            </div>
+          )}
+
+          {activeTab === 'visor' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddVisor} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 flex gap-3">
+                    <input type="text" required placeholder="Nome do Visor..." className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newVisorName} onChange={(e) => setNewVisorName(e.target.value)} />
+                    <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px]">Adicionar</button>
+                </form>
+                {visores.map(v => (
+                    <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                        <span className="font-bold text-sm uppercase">{v.name}</span>
+                        <button onClick={() => onRemoveVisor(v.id)} className="text-slate-300 hover:text-red-600"><Trash2 size={20}/></button>
+                    </div>
+                ))}
             </div>
           )}
         </div>

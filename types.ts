@@ -34,7 +34,7 @@ export interface Technician {
   id: string;
   name: string;
   avatarColor: string;
-  password?: string; // Nova propriedade para gestão de acesso
+  password?: string;
 }
 
 export interface Ticket {
@@ -45,7 +45,7 @@ export interface Ticket {
   address: string;
   vehicleType: VehicleType;
   serviceId: string;
-  visorId?: string; // Campo opcional para reconstruções
+  visorId?: string;
   status: TicketStatus;
   date: Date;
   scheduledTime: string;
@@ -55,6 +55,7 @@ export interface Ticket {
   locality?: string;
   processNumber?: string;
   faultDescription?: string;
+  updatedAt?: number; // Para controle de sincronização
 }
 
 export interface RouteAnalysis {
@@ -74,7 +75,7 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'technician' | 'viewer';
-  technicianId?: string; // ID associado se for perfil técnico
+  technicianId?: string;
 }
 
 export interface DayStatus {
@@ -82,4 +83,13 @@ export interface DayStatus {
   technicianId: string;
   date: Date;
   isOvernight: boolean;
+}
+
+export interface CloudData {
+  technicians: Technician[];
+  services: ServiceDefinition[];
+  tickets: Ticket[];
+  dayStatuses: DayStatus[];
+  visores: Visor[];
+  lastSync: number;
 }
