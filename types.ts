@@ -34,6 +34,7 @@ export interface Technician {
   id: string;
   name: string;
   avatarColor: string;
+  password?: string; // Nova propriedade para gestão de acesso
 }
 
 export interface Ticket {

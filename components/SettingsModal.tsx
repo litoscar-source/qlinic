@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Technician, ServiceDefinition, Visor } from '../types';
-import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock } from 'lucide-react';
+import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock, Lock, Key } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,6 +15,7 @@ interface SettingsModalProps {
   onRemoveService: (id: string) => void;
   onAddVisor: (visor: Visor) => void;
   onRemoveVisor: (id: string) => void;
+  onUpdateTechnician?: (id: string, updates: Partial<Technician>) => void;
 }
 
 const COLOR_PALETTE = [
@@ -42,10 +43,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onAddService,
   onRemoveService,
   onAddVisor,
-  onRemoveVisor
+  onRemoveVisor,
+  onUpdateTechnician
 }) => {
   const [activeTab, setActiveTab] = useState<'tech' | 'service' | 'visor'>('tech');
   const [newTechName, setNewTechName] = useState('');
+  const [newTechPassword, setNewTechPassword] = useState('1234');
   const [newServiceName, setNewServiceName] = useState('');
   const [newServiceDuration, setNewServiceDuration] = useState(1);
   const [newServiceColor, setNewServiceColor] = useState('bg-white');
@@ -60,9 +63,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onAddTechnician({
       id: Date.now().toString(),
       name: newTechName,
+      password: newTechPassword,
       avatarColor: colors[Math.floor(Math.random() * colors.length)]
     });
     setNewTechName('');
+    setNewTechPassword('1234');
+  };
+
+  const handleUpdatePassword = (id: string) => {
+      const newPwd = window.prompt("Definir nova palavra-passe para o técnico:");
+      if (newPwd && onUpdateTechnician) {
+          onUpdateTechnician(id, { password: newPwd });
+          alert("Palavra-passe atualizada com sucesso.");
+      }
   };
 
   const handleAddService = (e: React.FormEvent) => {
@@ -143,16 +156,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="flex-1 overflow-y-auto p-10 bg-white custom-scrollbar">
           {activeTab === 'tech' ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <form onSubmit={handleAddTech} className="flex gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-inner">
-                <input
-                  type="text"
-                  placeholder="Nome completo do técnico..."
-                  className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
-                  value={newTechName}
-                  onChange={(e) => setNewTechName(e.target.value)}
-                />
-                <button type="submit" className="px-10 py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 flex items-center gap-3 transition-all font-bold uppercase text-[11px] tracking-widest shadow-xl shadow-red-200 active:scale-95">
-                  <Plus size={20} /> Registar
+              <form onSubmit={handleAddTech} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-inner space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome do Técnico</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Nome completo..."
+                          className="w-full px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
+                          value={newTechName}
+                          onChange={(e) => setNewTechName(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha Inicial</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: 1234"
+                          className="w-full px-6 py-4 border border-slate-300 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 font-bold bg-white text-slate-900"
+                          value={newTechPassword}
+                          onChange={(e) => setNewTechPassword(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <button type="submit" className="w-full py-4 bg-red-600 text-white rounded-2xl hover:bg-red-700 flex items-center justify-center gap-3 transition-all font-bold uppercase text-[11px] tracking-widest shadow-xl shadow-red-200 active:scale-95">
+                  <Plus size={20} /> Registar Novo Técnico
                 </button>
               </form>
 
@@ -163,11 +193,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${tech.avatarColor}`}>
                         {tech.name.substring(0, 2).toUpperCase()}
                       </div>
-                      <span className="text-slate-900 font-bold uppercase tracking-tight text-sm">{tech.name}</span>
+                      <div className="flex flex-col">
+                        <span className="text-slate-900 font-bold uppercase tracking-tight text-sm">{tech.name}</span>
+                        <span className="text-[10px] text-slate-400 font-bold">PIN: {tech.password || '1234'}</span>
+                      </div>
                     </div>
-                    <button onClick={() => onRemoveTechnician(tech.id)} className="text-slate-300 hover:text-red-600 p-2 transition-all hover:bg-red-50 rounded-lg">
-                      <Trash2 size={20} />
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => handleUpdatePassword(tech.id)} className="text-slate-300 hover:text-blue-600 p-2 transition-all hover:bg-blue-50 rounded-lg" title="Alterar Senha">
+                          <Key size={18} />
+                        </button>
+                        <button onClick={() => onRemoveTechnician(tech.id)} className="text-slate-300 hover:text-red-600 p-2 transition-all hover:bg-red-50 rounded-lg">
+                          <Trash2 size={20} />
+                        </button>
+                    </div>
                   </div>
                 ))}
               </div>

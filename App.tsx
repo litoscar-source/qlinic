@@ -15,16 +15,16 @@ import { pt } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Settings, Route, FileBarChart, Download, Upload, LogOut, Calendar, LayoutGrid, List, Link, Maximize2, Minimize2 } from 'lucide-react';
 
 const SEED_TECHNICIANS: Technician[] = [
-  { id: 'tech-1', name: 'João Silva', avatarColor: 'bg-blue-600' },
-  { id: 'tech-2', name: 'Maria Costa', avatarColor: 'bg-emerald-600' },
-  { id: 'tech-3', name: 'Pedro Santos', avatarColor: 'bg-orange-600' },
-  { id: 'tech-4', name: 'Ana Pereira', avatarColor: 'bg-purple-600' },
-  { id: 'tech-5', name: 'Rui Ferreira', avatarColor: 'bg-rose-600' },
-  { id: 'tech-6', name: 'Carlos Lima', avatarColor: 'bg-cyan-600' },
-  { id: 'tech-7', name: 'Duarte Nuno', avatarColor: 'bg-indigo-600' },
-  { id: 'tech-8', name: 'Ricardo Dias', avatarColor: 'bg-amber-600' },
-  { id: 'tech-9', name: 'Sofia Mota', avatarColor: 'bg-teal-600' },
-  { id: 'tech-10', name: 'Nuno Alves', avatarColor: 'bg-violet-600' },
+  { id: 'tech-1', name: 'João Silva', avatarColor: 'bg-blue-600', password: '1234' },
+  { id: 'tech-2', name: 'Maria Costa', avatarColor: 'bg-emerald-600', password: '1234' },
+  { id: 'tech-3', name: 'Pedro Santos', avatarColor: 'bg-orange-600', password: '1234' },
+  { id: 'tech-4', name: 'Ana Pereira', avatarColor: 'bg-purple-600', password: '1234' },
+  { id: 'tech-5', name: 'Rui Ferreira', avatarColor: 'bg-rose-600', password: '1234' },
+  { id: 'tech-6', name: 'Carlos Lima', avatarColor: 'bg-cyan-600', password: '1234' },
+  { id: 'tech-7', name: 'Duarte Nuno', avatarColor: 'bg-indigo-600', password: '1234' },
+  { id: 'tech-8', name: 'Ricardo Dias', avatarColor: 'bg-amber-600', password: '1234' },
+  { id: 'tech-9', name: 'Sofia Mota', avatarColor: 'bg-teal-600', password: '1234' },
+  { id: 'tech-10', name: 'Nuno Alves', avatarColor: 'bg-violet-600', password: '1234' },
 ];
 
 const SEED_SERVICES: ServiceDefinition[] = [
@@ -176,6 +176,10 @@ function App() {
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, ...updates } : t));
   };
   
+  const handleUpdateTechnician = (techId: string, updates: Partial<Technician>) => {
+      setTechnicians(prev => prev.map(t => t.id === techId ? { ...t, ...updates } : t));
+  };
+
   const handleMoveTicket = (ticketId: string, newDate: Date, newTechId: string, sourceTechId?: string | null) => {
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
@@ -185,14 +189,11 @@ function App() {
       if (sourceTechId && newTechList.includes(sourceTechId)) {
           const index = newTechList.indexOf(sourceTechId);
           if (!newTechList.includes(newTechId)) {
-            // Se o destino não está na lista, substitui a origem pelo destino
             newTechList[index] = newTechId;
           } else if (newTechList.length > 1) {
-            // Se o destino já está na lista e temos mais que um técnico, remove apenas a origem
             newTechList.splice(index, 1);
           }
       } else if (!newTechList.includes(newTechId)) {
-          // Fallback se não houver sourceTechId: substitui todos pelo novo técnico
           newTechList = [newTechId];
       }
       
@@ -220,20 +221,20 @@ function App() {
 
   if (!user) return <LoginScreen onLogin={setUser} />;
 
-  // Se o utilizador é Técnico, mostrar vista mobile dedicada
   if (user.role === 'technician' && user.technicianId) {
+      const currentTech = technicians.find(t => t.id === user.technicianId);
       return (
           <>
             <MobileTechnicianView 
                 tickets={tickets} 
                 technicianId={user.technicianId} 
+                technician={currentTech!}
                 services={services} 
                 onUpdateStatus={(id, status) => handleUpdateTicket(id, { status })}
                 onViewDetails={(t) => { setEditingTicket(t); setIsTicketModalOpen(true); }}
+                onUpdateProfile={(updates) => handleUpdateTechnician(user.technicianId!, updates)}
+                onLogout={() => setUser(null)}
             />
-            <button onClick={() => setUser(null)} className="fixed top-4 right-4 z-50 bg-white/20 p-2 rounded-full text-white backdrop-blur-sm">
-                <LogOut size={20} />
-            </button>
             <TicketFormModal 
                 isOpen={isTicketModalOpen} 
                 onClose={() => { setIsTicketModalOpen(false); setEditingTicket(null); }}
@@ -345,7 +346,7 @@ function App() {
             </div>
 
             {viewMode !== 'list' && (
-                <footer className="h-28 bg-white border border-slate-200 rounded-xl shadow-sm z-30 shrink-0 flex flex-col overflow-hidden hidden md:flex">
+                <footer className="h-64 bg-white border border-slate-200 rounded-xl shadow-sm z-30 shrink-0 flex flex-col overflow-hidden hidden md:flex">
                    <div className="px-4 py-1.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
                         <div className="flex items-center gap-2">
                             <Route size={14} className="text-red-600" />
@@ -376,7 +377,7 @@ function App() {
                                 </div>
                             )}
                         </div>
-                        <div className="col-span-3 h-full">
+                        <div className="col-span-3 h-full overflow-hidden">
                             <RouteAnalyzer tickets={tickets.filter(t => isSameDay(t.date, selectedDate))} technicians={technicians} dayStatuses={dayStatuses} />
                         </div>
                      </div>
@@ -412,6 +413,7 @@ function App() {
             onRemoveService={(id) => setServices(prev => prev.filter(s => s.id !== id))}
             onAddVisor={(v) => setVisores(prev => [...prev, v])}
             onRemoveVisor={(id) => setVisores(prev => prev.filter(v => v.id !== id))}
+            onUpdateTechnician={handleUpdateTechnician}
         />
 
         <ReportsModal isOpen={isReportsModalOpen} onClose={() => setIsReportsModalOpen(false)} tickets={tickets} dayStatuses={dayStatuses} technicians={technicians} services={services} visores={visores} />

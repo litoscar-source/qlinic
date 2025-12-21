@@ -33,13 +33,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     if (role === 'admin') {
       if (password === '9816') {
         onLogin({ id: 'u1', name: 'Administrador', email: 'admin@qlinic.pt', role: 'admin' });
-      } else setError('Palavra-passe incorreta.');
+      } else setError('Palavra-passe de Gestor incorreta.');
     } else if (role === 'viewer') {
       if (password === '2025') {
         onLogin({ id: 'u2', name: 'Visitante', email: 'view@qlinic.pt', role: 'viewer' });
-      } else setError('Palavra-passe incorreta.');
+      } else setError('Palavra-passe de Visualizador incorreta.');
     } else if (role === 'technician') {
-      if (password === '1234') {
+      const correctPassword = tech?.password || '1234';
+      if (password === correctPassword) {
         onLogin({ 
           id: `u-${selectedTechId}`, 
           name: tech?.name || 'Técnico', 
@@ -47,7 +48,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           role: 'technician',
           technicianId: selectedTechId 
         });
-      } else setError('Palavra-passe incorreta.');
+      } else setError('PIN do Técnico incorreto.');
     }
   };
 
@@ -106,11 +107,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           )}
 
           <div className="space-y-2">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Palavra-passe</label>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Palavra-passe / PIN</label>
             <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                    className={`w-full pl-12 pr-4 py-4 border-2 rounded-2xl outline-none transition-all font-bold tracking-[0.3em] bg-slate-50 ${error ? 'border-red-300 focus:border-red-500' : 'border-slate-100 focus:border-red-600'}`}
+                    className={`w-full pl-12 pr-4 py-4 border-2 rounded-2xl outline-none transition-all font-bold bg-slate-50 text-slate-900 ${error ? 'border-red-300 focus:border-red-500' : 'border-slate-100 focus:border-red-600'}`}
                     placeholder="••••" />
             </div>
             {error && <p className="text-red-500 text-[10px] font-bold uppercase mt-1 ml-1">{error}</p>}
