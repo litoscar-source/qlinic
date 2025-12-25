@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { Ticket, TicketStatus, Technician, ServiceDefinition } from '../types';
-import { Search, Filter, ArrowUpDown, Clock, MapPin, User, ChevronRight, CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
+import { Ticket, TicketStatus, Technician, ServiceDefinition, Vehicle } from '../types';
+import { Search, Filter, ArrowUpDown, Clock, MapPin, User, ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Truck } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -9,6 +9,7 @@ interface ListViewProps {
   tickets: Ticket[];
   technicians: Technician[];
   services: ServiceDefinition[];
+  vehicles: Vehicle[];
   onEditTicket: (ticket: Ticket) => void;
   onUpdateTicket: (ticketId: string, updates: Partial<Ticket>) => void;
   isReadOnly?: boolean;
@@ -18,6 +19,7 @@ export const ListView: React.FC<ListViewProps> = ({
   tickets,
   technicians,
   services,
+  vehicles,
   onEditTicket,
   onUpdateTicket,
   isReadOnly = false
@@ -107,7 +109,7 @@ export const ListView: React.FC<ListViewProps> = ({
               <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Data / Hora</th>
               <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Técnico</th>
               <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Cliente / Ticket</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Serviço</th>
+              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Serviço / Viatura</th>
               <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Estado</th>
               <th className="px-6 py-3 text-center text-[10px] font-bold text-slate-600 uppercase tracking-widest">Ações</th>
             </tr>
@@ -116,6 +118,7 @@ export const ListView: React.FC<ListViewProps> = ({
             {filteredTickets.map(ticket => {
               const tech = technicians.filter(t => ticket.technicianIds.includes(t.id));
               const service = services.find(s => s.id === ticket.serviceId);
+              const vehicle = vehicles.find(v => v.id === ticket.vehicleId);
               
               return (
                 <tr key={ticket.id} className="hover:bg-slate-50 transition-colors group">
@@ -152,7 +155,9 @@ export const ListView: React.FC<ListViewProps> = ({
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="text-xs font-bold text-slate-800 uppercase tracking-tight">{service?.name || 'OUTRO'}</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">{ticket.duration}h estimado</span>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                        <Truck size={10} className="text-slate-400" /> {vehicle?.name || 'SEM VIATURA'}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4">

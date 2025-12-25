@@ -1,5 +1,5 @@
 
-import React, { ReactNode, ErrorInfo } from 'react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -12,8 +12,11 @@ interface ErrorBoundaryState {
   error: any;
 }
 
-// Fix: Use React.Component specifically to ensure inherited properties like 'props' and 'state' are correctly recognized by the TypeScript compiler, resolving previous type inference issues.
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+// Fix: Explicitly declare state and props properties. Although inherited from Component, some TypeScript configurations require these to be explicitly defined within the class to resolve property access errors.
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState;
+  public props: ErrorBoundaryProps;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -68,7 +71,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
-    // Fix: Return children from this.props now that props is correctly recognized as a member of the component class extending React.Component.
+    // Fix: Return children from this.props now that props is correctly recognized as a member of the component class.
     return this.props.children;
   }
 }

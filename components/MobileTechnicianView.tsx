@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Ticket, TicketStatus, Technician, ServiceDefinition } from '../types';
-import { Clock, MapPin, Navigation, CheckCircle2, AlertCircle, FileText, ChevronRight, Calendar, User, Search, CheckCircle, X, ChevronDown, HelpCircle, Phone, Info, MoreVertical, LogOut, Key, Shield, Lock } from 'lucide-react';
+import { Ticket, TicketStatus, Technician, ServiceDefinition, Vehicle } from '../types';
+import { Clock, MapPin, Navigation, CheckCircle2, AlertCircle, FileText, ChevronRight, Calendar, User, Search, CheckCircle, X, ChevronDown, HelpCircle, Phone, Info, MoreVertical, LogOut, Key, Shield, Lock, Truck } from 'lucide-react';
 import { format, isSameDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -10,6 +10,7 @@ interface MobileTechnicianViewProps {
   technicianId: string;
   technician: Technician;
   services: ServiceDefinition[];
+  vehicles: Vehicle[];
   onUpdateStatus: (ticketId: string, status: TicketStatus) => void;
   onViewDetails: (ticket: Ticket) => void;
   onUpdateProfile: (updates: Partial<Technician>) => void;
@@ -23,6 +24,7 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
   technicianId,
   technician,
   services,
+  vehicles,
   onUpdateStatus,
   onViewDetails,
   onUpdateProfile,
@@ -105,6 +107,7 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
             ) : (
                 techTickets.map(ticket => {
                     const service = services.find(s => s.id === ticket.serviceId);
+                    const vehicle = vehicles.find(v => v.id === ticket.vehicleId);
                     const isResolved = ticket.status === TicketStatus.RESOLVIDO;
                     const statusCfg = getStatusConfig(ticket.status);
                     
@@ -160,8 +163,12 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
                                                 <FileText size={24} />
                                             </div>
                                             <div>
-                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Procedimento</p>
-                                                <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{service?.name}</p>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Procedimento / Viatura</p>
+                                                <p className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                                                    {service?.name} 
+                                                    <span className="text-slate-400 mx-2">|</span> 
+                                                    <span className="text-red-600">{vehicle?.name || '---'}</span>
+                                                </p>
                                             </div>
                                         </div>
                                         <span className="text-[10px] font-black text-red-600 bg-white px-3 py-1.5 rounded-xl border border-red-100 shadow-sm">#{ticket.ticketNumber}</span>
