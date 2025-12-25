@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Technician, ServiceDefinition, Visor, Vehicle } from '../types';
-import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock, Lock, Key, Cloud, Copy, RefreshCw, Smartphone, Palette, Download, Upload, ShieldCheck, Truck, FileJson, AlertCircle } from 'lucide-react';
+import { X, Trash2, Plus, User, Briefcase, Check, Monitor, Info, Clock, Lock, Key, Cloud, Copy, RefreshCw, Smartphone, Palette, Download, Upload, ShieldCheck, Truck, FileJson, AlertCircle, Share2, QrCode } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -43,6 +43,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
+  // URL de partilha com QR Code
+  const shareUrl = `${window.location.origin}${window.location.pathname}?key=${syncKey}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
+
   const handleAddTech = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTechName) return;
@@ -79,13 +83,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const serviceColors = [
-    { label: 'Cinza (Padrão)', value: 'bg-slate-100' },
-    { label: 'Azul (Instalação)', value: 'bg-blue-600' },
-    { label: 'Verde (Manutenção)', value: 'bg-emerald-600' },
-    { label: 'Laranja (Recon)', value: 'bg-orange-500' },
-    { label: 'Roxo (Urgente)', value: 'bg-purple-600' },
-    { label: 'Rosa (Venda)', value: 'bg-rose-500' },
-    { label: 'Escuro (Outro)', value: 'bg-slate-900' },
+    { label: 'Cinza', value: 'bg-slate-100' },
+    { label: 'Azul', value: 'bg-blue-600' },
+    { label: 'Verde', value: 'bg-emerald-600' },
+    { label: 'Laranja', value: 'bg-orange-500' },
+    { label: 'Roxo', value: 'bg-purple-600' },
+    { label: 'Rosa', value: 'bg-rose-500' },
+    { label: 'Escuro', value: 'bg-slate-900' },
   ];
 
   const getTabClass = (id: string) => {
@@ -130,109 +134,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="flex gap-3">
                         <div className="relative flex-1">
                             <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input type="text" required placeholder="Nome do Técnico..." className="w-full pl-12 pr-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={newTechName} onChange={(e) => setNewTechName(e.target.value)} />
+                            <input type="text" required placeholder="Nome..." className="w-full pl-12 pr-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={newTechName} onChange={(e) => setNewTechName(e.target.value)} />
                         </div>
                         <div className="relative w-32">
                             <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input type="text" required placeholder="PIN" maxLength={4} className="w-full pl-9 pr-4 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={newTechPassword} onChange={(e) => setNewTechPassword(e.target.value)} />
                         </div>
-                        <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest shadow-xl hover:bg-red-700 transition-all">Registar</button>
+                        <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] shadow-xl hover:bg-red-700 transition-all">Registar</button>
                     </div>
                 </form>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {technicians.map(t => (
-                        <div key={t.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 group hover:border-red-200 transition-all">
+                        <div key={t.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 hover:border-red-200 transition-all">
                             <div className="flex items-center gap-4">
                                 <div className={`w-10 h-10 rounded-xl ${t.avatarColor} text-white flex items-center justify-center font-bold shadow-md`}>{t.name.substring(0, 2).toUpperCase()}</div>
-                                <div>
-                                    <p className="font-bold text-sm uppercase text-slate-900">{t.name}</p>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">PIN: {t.password || '1234'}</p>
-                                </div>
+                                <div><p className="font-bold text-sm uppercase text-slate-900">{t.name}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">PIN: {t.password || '1234'}</p></div>
                             </div>
-                            <button onClick={() => onRemoveTechnician(t.id)} className="text-slate-300 hover:text-red-600 p-2 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18}/></button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-          )}
-
-          {activeTab === 'service' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <form onSubmit={handleAddService} className="bg-slate-50 p-8 rounded-3xl border border-slate-200 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nome do Serviço</label>
-                            <input type="text" required placeholder="Ex: Montagem..." className="w-full px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Duração (Horas)</label>
-                            <input type="number" required min={0.5} step={0.5} className="w-full px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={newServiceDuration} onChange={(e) => setNewServiceDuration(Number(e.target.value))} />
-                        </div>
-                    </div>
-                    <div className="space-y-3">
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cor de Identificação</label>
-                        <div className="flex flex-wrap gap-2">
-                            {serviceColors.map(c => (
-                                <button key={c.value} type="button" onClick={() => setNewServiceColor(c.value)} className={`w-8 h-8 rounded-full border-2 transition-all ${c.value} ${newServiceColor === c.value ? 'ring-4 ring-red-100 border-red-600 scale-110' : 'border-transparent'}`} title={c.label} />
-                            ))}
-                        </div>
-                    </div>
-                    <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest shadow-xl hover:bg-black transition-all">Adicionar Tipo de Serviço</button>
-                </form>
-                <div className="space-y-3">
-                    {services.map(s => (
-                        <div key={s.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 group transition-all">
-                            <div className="flex items-center gap-4">
-                                <div className={`w-4 h-10 rounded-full ${s.colorClass} shadow-sm`} />
-                                <div>
-                                    <p className="font-bold text-sm uppercase text-slate-900">{s.name}</p>
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{s.defaultDuration} Horas Estimadas</p>
-                                </div>
-                            </div>
-                            <button onClick={() => onRemoveService(s.id)} className="text-slate-300 hover:text-red-600 p-2 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18}/></button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-          )}
-
-          {activeTab === 'vehicle' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <form onSubmit={handleAddVehicle} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 flex gap-3">
-                    <div className="relative flex-1">
-                        <Truck size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input type="text" required placeholder="Ex: Iveco 00-XX-00..." className="w-full pl-12 pr-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newVehicleName} onChange={(e) => setNewVehicleName(e.target.value)} />
-                    </div>
-                    <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest shadow-xl">Adicionar</button>
-                </form>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {vehicles.map(v => (
-                        <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 group hover:border-red-200">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-slate-100 p-2 rounded-lg text-slate-600"><Truck size={18} /></div>
-                                <span className="font-bold text-sm uppercase">{v.name}</span>
-                            </div>
-                            <button onClick={() => onRemoveVehicle(v.id)} className="text-slate-300 hover:text-red-600 p-2"><Trash2 size={18}/></button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-          )}
-
-          {activeTab === 'visor' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <form onSubmit={handleAddVisor} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 flex gap-3">
-                    <div className="relative flex-1">
-                        <Monitor size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input type="text" required placeholder="Modelo do Visor / Equipamento..." className="w-full pl-12 pr-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900" value={newVisorName} onChange={(e) => setNewVisorName(e.target.value)} />
-                    </div>
-                    <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest shadow-xl">Registar</button>
-                </form>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {visores.map(v => (
-                        <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 group">
-                            <span className="font-bold text-sm uppercase text-slate-700">{v.name}</span>
-                            <button onClick={() => onRemoveVisor(v.id)} className="text-slate-300 hover:text-red-600 p-2"><Trash2 size={18}/></button>
+                            <button onClick={() => onRemoveTechnician(t.id)} className="text-slate-300 hover:text-red-600 p-2 hover:bg-red-50 rounded-xl"><Trash2 size={18}/></button>
                         </div>
                     ))}
                 </div>
@@ -244,21 +162,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="bg-emerald-50 p-10 rounded-[2.5rem] border border-emerald-100 flex flex-col items-center text-center">
                     <div className="bg-white p-6 rounded-full shadow-lg mb-6"><Cloud className="text-emerald-600" size={48} /></div>
                     <h3 className="text-2xl font-black text-emerald-900 uppercase tracking-tight mb-2">Sincronização Cloud</h3>
-                    <p className="text-emerald-700/70 text-sm max-w-md leading-relaxed mb-8">Partilhe a agenda em tempo real entre todos os dispositivos. Os dados são guardados de forma segura e sincronizados automaticamente.</p>
+                    <p className="text-emerald-700/70 text-sm max-w-md leading-relaxed mb-8">Ative a nuvem para que os técnicos vejam os dados no telemóvel instantaneamente.</p>
                     
                     {!syncKey ? (
                         <button onClick={onCreateSyncKey} className="bg-emerald-600 text-white px-12 py-5 rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-emerald-200 hover:bg-emerald-700 transition-all flex items-center gap-3">
-                            <RefreshCw size={20} /> Ativar Cloud Agora
+                            <RefreshCw size={20} /> Ativar Cloud
                         </button>
                     ) : (
-                        <div className="w-full max-w-md space-y-4">
-                            <div className="bg-white p-6 rounded-3xl border-2 border-emerald-200 shadow-sm relative group">
-                                <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2 text-left">Chave de Acesso Ativa</label>
-                                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl">
+                        <div className="w-full flex flex-col md:flex-row gap-8 items-center bg-white p-8 rounded-[2.5rem] border-2 border-emerald-200 shadow-xl">
+                            <div className="space-y-4 flex-1 text-left">
+                                <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest">Acesso do Técnico</label>
+                                <p className="text-slate-600 text-xs leading-relaxed">Peça ao técnico para apontar a câmara do telemóvel para o código ao lado para configurar automaticamente.</p>
+                                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
                                     <code className="text-slate-900 font-black tracking-widest text-lg">{syncKey}</code>
-                                    <button onClick={() => { navigator.clipboard.writeText(syncKey || ''); alert("Chave copiada!"); }} className="p-2 text-slate-400 hover:text-emerald-600 transition-all"><Copy size={20}/></button>
+                                    <button onClick={() => { navigator.clipboard.writeText(shareUrl); alert("Link copiado!"); }} className="p-2 text-slate-400 hover:text-emerald-600 transition-all"><Share2 size={20}/></button>
                                 </div>
-                                <button onClick={() => onSetSyncKey(null)} className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-700 underline">Desativar Sincronização</button>
+                                <button onClick={() => onSetSyncKey(null)} className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-700 underline">Desativar Nuvem</button>
+                            </div>
+                            <div className="shrink-0 bg-slate-50 p-4 rounded-3xl border border-slate-200 shadow-inner flex flex-col items-center gap-3">
+                                <img src={qrCodeUrl} alt="QR Code" className="w-40 h-40 rounded-xl shadow-md border-4 border-white" />
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><QrCode size={10}/> SCAN TO CONNECT</span>
                             </div>
                         </div>
                     )}
@@ -267,9 +190,77 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-200">
                     <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Key size={14}/> Ligar a Nuvem Existente</h4>
                     <div className="flex gap-3">
-                        <input type="text" placeholder="Cole aqui a sua chave de sincronização..." className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={inputSyncKey} onChange={(e) => setInputSyncKey(e.target.value)} />
-                        <button onClick={() => { onSetSyncKey(inputSyncKey); setInputSyncKey(''); }} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest shadow-xl">Conectar</button>
+                        <input type="text" placeholder="Cole aqui a chave..." className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white outline-none" value={inputSyncKey} onChange={(e) => setInputSyncKey(e.target.value)} />
+                        <button onClick={() => { onSetSyncKey(inputSyncKey); setInputSyncKey(''); }} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase text-[11px] tracking-widest">Conectar</button>
                     </div>
+                </div>
+            </div>
+          )}
+
+          {activeTab === 'service' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddService} className="bg-slate-50 p-8 rounded-3xl border border-slate-200 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nome do Serviço</label>
+                            <input type="text" required className="w-full px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Duração (Horas)</label>
+                            <input type="number" required min={0.5} step={0.5} className="w-full px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white" value={newServiceDuration} onChange={(e) => setNewServiceDuration(Number(e.target.value))} />
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cor</label>
+                        <div className="flex flex-wrap gap-2">
+                            {serviceColors.map(c => (
+                                <button key={c.value} type="button" onClick={() => setNewServiceColor(c.value)} className={`w-8 h-8 rounded-full border-2 transition-all ${c.value} ${newServiceColor === c.value ? 'ring-4 ring-red-100 border-red-600 scale-110' : 'border-transparent'}`} />
+                            ))}
+                        </div>
+                    </div>
+                    <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase text-[11px] shadow-xl">Adicionar Serviço</button>
+                </form>
+                <div className="space-y-3">
+                    {services.map(s => (
+                        <div key={s.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                            <div className="flex items-center gap-4"><div className={`w-4 h-10 rounded-full ${s.colorClass}`} /><div><p className="font-bold text-sm uppercase text-slate-900">{s.name}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{s.defaultDuration}H Estimadas</p></div></div>
+                            <button onClick={() => onRemoveService(s.id)} className="text-slate-300 hover:text-red-600 p-2"><Trash2 size={18}/></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          )}
+
+          {activeTab === 'vehicle' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddVehicle} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 flex gap-3">
+                    <input type="text" required placeholder="Viatura..." className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white" value={newVehicleName} onChange={(e) => setNewVehicleName(e.target.value)} />
+                    <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] shadow-xl">Adicionar</button>
+                </form>
+                <div className="grid grid-cols-2 gap-4">
+                    {vehicles.map(v => (
+                        <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                            <span className="font-bold text-sm uppercase">{v.name}</span>
+                            <button onClick={() => onRemoveVehicle(v.id)} className="text-slate-300 hover:text-red-600 p-2"><Trash2 size={18}/></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          )}
+
+          {activeTab === 'visor' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddVisor} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 flex gap-3">
+                    <input type="text" required placeholder="Modelo Equipamento..." className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white" value={newVisorName} onChange={(e) => setNewVisorName(e.target.value)} />
+                    <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] shadow-xl">Registar</button>
+                </form>
+                <div className="grid grid-cols-2 gap-4">
+                    {visores.map(v => (
+                        <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                            <span className="font-bold text-sm uppercase text-slate-700">{v.name}</span>
+                            <button onClick={() => onRemoveVisor(v.id)} className="text-slate-300 hover:text-red-600 p-2"><Trash2 size={18}/></button>
+                        </div>
+                    ))}
                 </div>
             </div>
           )}
@@ -277,29 +268,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'data' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="bg-blue-50 p-10 rounded-[2.5rem] border border-blue-100 flex flex-col items-center text-center group transition-all hover:shadow-xl hover:shadow-blue-50">
-                        <div className="bg-white p-6 rounded-full shadow-lg mb-6 group-hover:scale-110 transition-transform"><Download className="text-blue-600" size={40} /></div>
+                    <div className="bg-blue-50 p-10 rounded-[2.5rem] border border-blue-100 flex flex-col items-center text-center">
+                        <div className="bg-white p-6 rounded-full shadow-lg mb-6"><Download className="text-blue-600" size={40} /></div>
                         <h4 className="text-xl font-black text-blue-900 uppercase tracking-tight mb-2">Exportar Backup</h4>
-                        <p className="text-blue-700/70 text-xs mb-8">Guarde uma cópia de segurança de todos os dados (técnicos, frota, tickets) num ficheiro local.</p>
-                        <button onClick={onExportBackup} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-blue-700 transition-all">Descarregar JSON</button>
+                        <button onClick={onExportBackup} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg">Descarregar JSON</button>
                     </div>
-
-                    <div className="bg-slate-900 p-10 rounded-[2.5rem] border border-slate-800 flex flex-col items-center text-center group transition-all hover:shadow-xl hover:shadow-slate-200">
-                        <div className="bg-white/10 p-6 rounded-full shadow-lg mb-6 group-hover:scale-110 transition-transform"><Upload className="text-white" size={40} /></div>
+                    <div className="bg-slate-900 p-10 rounded-[2.5rem] border border-slate-800 flex flex-col items-center text-center">
+                        <div className="bg-white/10 p-6 rounded-full shadow-lg mb-6"><Upload className="text-white" size={40} /></div>
                         <h4 className="text-xl font-black text-white uppercase tracking-tight mb-2">Restaurar Backup</h4>
-                        <p className="text-slate-400 text-xs mb-8">Substitua os dados atuais carregando um ficheiro de backup guardado anteriormente.</p>
-                        <label className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-slate-100 transition-all cursor-pointer text-center flex items-center justify-center gap-2">
-                            <FileJson size={14}/> Selecionar Ficheiro
+                        <label className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] shadow-lg cursor-pointer text-center flex items-center justify-center gap-2">
+                            <FileJson size={14}/> Carregar Ficheiro
                             <input type="file" accept=".json" onChange={onImportBackup} className="hidden" />
                         </label>
-                    </div>
-                </div>
-
-                <div className="bg-amber-50 p-6 rounded-3xl border border-amber-200 flex items-start gap-4">
-                    <AlertCircle className="text-amber-500 shrink-0" size={24} />
-                    <div>
-                        <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest mb-1">Aviso de Segurança</p>
-                        <p className="text-amber-700/80 text-xs leading-relaxed font-medium">A importação de dados irá substituir permanentemente todos os registos atuais no seu dispositivo. Recomenda-se exportar um backup antes de realizar esta operação.</p>
                     </div>
                 </div>
             </div>
