@@ -72,9 +72,9 @@ export const analyzeRoute = async (
   `;
 
   try {
-    // Fix: Use a Gemini 2.5 series model as required for Maps Grounding
+    // Fix: Use Gemini 2.5 series model specifically for Maps Grounding
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite-latest", 
+      model: "gemini-2.5-flash", 
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
@@ -108,6 +108,7 @@ export const analyzeRoute = async (
     }
     
     const groundingUrls: string[] = [];
+    // Fix: Extract Maps URLs from groundingChunks as required by the Maps Grounding guidelines
     const chunks = candidate.groundingMetadata?.groundingChunks;
     if (chunks) {
         chunks.forEach((chunk: any) => {

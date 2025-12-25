@@ -1,12 +1,7 @@
 
-export enum VehicleType {
-  CARRO = 'Carro Ligeiro',
-  CARRINHA = 'Carrinha Comercial',
-  MOTO = 'Moto',
-  CAMIAO = 'Camião',
-  CAMIAO_PEQUENO = 'Camião Pequeno',
-  CAMIAO_GRANDE = 'Camião Grande',
-  IVECO = 'Iveco'
+export interface Vehicle {
+  id: string;
+  name: string;
 }
 
 export enum TicketStatus {
@@ -43,7 +38,7 @@ export interface Ticket {
   ticketNumber: string;
   customerName: string;
   address: string;
-  vehicleType: VehicleType;
+  vehicleId: string; // Referência ao ID do veículo
   serviceId: string;
   visorId?: string;
   status: TicketStatus;
@@ -55,7 +50,7 @@ export interface Ticket {
   locality?: string;
   processNumber?: string;
   faultDescription?: string;
-  updatedAt?: number; // Para controle de sincronização
+  updatedAt?: number; 
 }
 
 export interface RouteAnalysis {
@@ -88,6 +83,7 @@ export interface DayStatus {
 export interface CloudData {
   technicians: Technician[];
   services: ServiceDefinition[];
+  vehicles: Vehicle[];
   tickets: Ticket[];
   dayStatuses: DayStatus[];
   visores: Visor[];
