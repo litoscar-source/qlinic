@@ -17,12 +17,14 @@ interface ErrorBoundaryState {
  * Corrigido: Especificando React.Component e declarando propriedades para satisfazer o verificador de tipos do TypeScript.
  */
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Explicitly declare state property to fix: Property 'state' does not exist on type 'ErrorBoundary'
+  // Explicitly declare state and props properties to fix: Property 'state'/'props' does not exist on type 'ErrorBoundary'
   public state: ErrorBoundaryState;
+  public props: ErrorBoundaryProps;
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    // Initialize state in constructor
+    // Initialize state and props in constructor to satisfy explicit declarations
+    this.props = props;
     this.state = { hasError: false, error: null };
   }
 
@@ -78,7 +80,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
-    // Access props for children - fixed by correctly extending React.Component
+    // Access props for children - fixed by correctly extending React.Component and declaring props
     return this.props.children;
   }
 }
