@@ -34,12 +34,13 @@ export interface Technician {
 
 /**
  * Estrutura de Linha PostgreSQL (Relacional)
+ * Campos de metadados tornados opcionais para compatibilidade com formulários de criação.
  */
 export interface PostgresRow {
   id: string; // UUID ou Serial
-  created_at: string;
-  updated_at: string;
-  version: number;
+  created_at?: string;
+  updated_at?: string;
+  version?: number;
 }
 
 export interface User {

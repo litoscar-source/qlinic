@@ -16,7 +16,7 @@ export const analyzeRoute = async (
     throw new Error("São necessários serviços para calcular uma rota.");
   }
 
-  // Inicialização seguindo as diretrizes Gemini 3
+  // Initialize GenAI client. Maps grounding and thinking config require Gemini 2.5 or 3 series models.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Fix: use camelCase property names as defined in the updated types.ts
@@ -66,13 +66,14 @@ export const analyzeRoute = async (
   `;
 
   try {
-    // Maps grounding is only supported in Gemini 2.5 series models.
+    // Maps grounding is only supported in Gemini 2.5 series models. 
+    // Thinking Config is available for Gemini 2.5 and 3 series.
     const response = await ai.models.generateContent({
-      model: "gemini-flash-lite-latest", 
+      model: "gemini-2.5-flash", 
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
-        thinkingConfig: { thinkingBudget: 2000 }, // Available for Gemini 2.5 and 3 series
+        thinkingConfig: { thinkingBudget: 2000 },
         temperature: 0.1,
       },
     });
@@ -95,6 +96,7 @@ export const analyzeRoute = async (
     }
     
     const groundingUrls: string[] = [];
+    // Extract Maps grounding URLs as required by the guidelines
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
         chunks.forEach((chunk: any) => {
