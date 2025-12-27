@@ -14,19 +14,13 @@ interface ErrorBoundaryState {
 /**
  * ErrorBoundary Component
  * Captura erros de renderização para evitar que a aplicação inteira falhe.
- * Corrigido: Especificando React.Component e declarando propriedades para satisfazer o verificador de tipos do TypeScript.
+ * Corrigido: Usando inicialização de propriedade para 'state' e removendo o construtor 
+ * para garantir que TypeScript reconheça as propriedades herdadas de React.Component,
+ * evitando erros de "Property does not exist".
  */
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Explicitly declare state and props properties to fix: Property 'state'/'props' does not exist on type 'ErrorBoundary'
-  public state: ErrorBoundaryState;
-  public props: ErrorBoundaryProps;
-
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    // Initialize state and props in constructor to satisfy explicit declarations
-    this.props = props;
-    this.state = { hasError: false, error: null };
-  }
+  // Inicialização de estado diretamente na classe para melhor suporte TS em comparação com o construtor
+  state: ErrorBoundaryState = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: any): ErrorBoundaryState {
     return { hasError: true, error };
@@ -37,7 +31,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   render() {
-    // Access state to check for errors
+    // Acesso às propriedades herdadas de React.Component
     if (this.state.hasError) {
       const errorMsg = this.state.error?.message || 
         (typeof this.state.error === 'object' ? JSON.stringify(this.state.error) : String(this.state.error));
@@ -80,7 +74,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
-    // Access props for children - fixed by correctly extending React.Component and declaring props
     return this.props.children;
   }
 }
