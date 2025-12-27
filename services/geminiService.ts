@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { Ticket, RouteAnalysis } from "../types";
 
@@ -16,86 +15,72 @@ export const analyzeRoute = async (
     throw new Error("São necessários serviços para calcular uma rota.");
   }
 
+  // Inicialização seguindo as diretrizes Gemini 3
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // Sort tickets by time
   const sortedTickets = [...tickets].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
 
   const stops = sortedTickets.map((t, index) => 
-    `${index + 1}. [H: ${t.scheduledTime}] Cliente: ${t.customerName}, CP7/Morada: ${t.address}, Localidade: ${t.locality || 'N/A'}`
+    `${index + 1}. [H: ${t.scheduledTime}] Cliente: ${t.customerName}, CP7: ${t.address}, Localidade: ${t.locality || 'N/A'}`
   ).join("\n");
 
   const headquarters = "4705-471, Braga, Portugal";
 
   let routingLogicDescription = "";
   if (context.yesterdayOvernight) {
-      routingLogicDescription += "- PONTO INICIAL: O técnico já está no terreno (dormiu fora). Iniciar no 1º cliente.\n";
+      routingLogicDescription += "- INÍCIO: Técnico já no terreno (dormiu fora). Começar no 1º cliente.\n";
   } else {
-      routingLogicDescription += `- PONTO INICIAL: Partida da sede em ${headquarters}.\n`;
+      routingLogicDescription += `- INÍCIO: Partida da sede em Braga (${headquarters}).\n`;
   }
 
   if (context.todayOvernight) {
-      routingLogicDescription += "- PONTO FINAL: O técnico dorme fora hoje. Rota encerra no último cliente.\n";
+      routingLogicDescription += "- FIM: Técnico dorme fora. Rota termina no último cliente.\n";
   } else {
-      routingLogicDescription += `- PONTO FINAL: Regresso obrigatório à sede em ${headquarters}.\n`;
+      routingLogicDescription += `- FIM: Regresso obrigatório à sede (${headquarters}).\n`;
   }
 
-  // Fix: Escape triple backticks inside the template literal to prevent syntax errors
   const prompt = `
-    Como especialista em logística de transportes em PORTUGAL, calcule a rota mais eficiente para o técnico ${technicianName}.
+    Como especialista em logística em PORTUGAL, calcule a rota mais eficiente para o técnico ${technicianName}.
     
-    DIRETRIZES DE MOVIMENTAÇÃO:
+    DIRETRIZES:
     ${routingLogicDescription}
     
-    LISTA DE PARAGENS (Utilize obrigatoriamente os CÓDIGOS POSTAIS para geolocalização exata):
+    PARAGENS:
     ${stops}
 
-    REGRAS CRÍTICAS:
-    1. PRIORIDADE TOTAL AO CÓDIGO POSTAL (CP7) fornecido em cada morada para evitar erros de localidade.
-    2. Calcule os tempos de deslocação reais baseados na rede viária portuguesa.
-    3. Retorne EXCLUSIVAMENTE um objeto JSON válido.
-    4. Não inclua Markdown (\`\`\`json) ou qualquer texto explicativo fora do JSON.
+    REGRAS:
+    1. PRIORIDADE AO CÓDIGO POSTAL (CP7).
+    2. Calcule tempos de deslocação reais.
+    3. Retorne APENAS um objeto JSON puro.
 
-    ESTRUTURA JSON OBRIGATÓRIA:
+    ESTRUTURA:
     {
-      "totalTime": "tempo total condução + estimativa (ex: 7h 45m)",
-      "totalDistance": "km totais (ex: 145 km)",
+      "totalTime": "tempo total",
+      "totalDistance": "km totais",
       "segments": [
-        {
-          "from": "Local de Partida",
-          "to": "Local de Destino",
-          "estimatedTime": "tempo trecho",
-          "distance": "distância trecho"
-        }
+        { "from": "A", "to": "B", "estimatedTime": "X min", "distance": "Y km" }
       ]
     }
   `;
 
   try {
-    // Fix: Use Gemini 2.5 series model specifically for Maps Grounding
+    // Corrigido: Usando gemini-2.5-flash para suporte a googleMaps conforme as diretrizes (Maps grounding exige série 2.5)
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash", 
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
-        systemInstruction: "Você é um algoritmo de roteirização geográfica para Portugal. Sua saída deve ser puramente JSON, sem formatação markdown. Use sempre o Código Postal para precisão absoluta.",
+        thinkingConfig: { thinkingBudget: 2000 }, // Otimização para raciocínio espacial
         temperature: 0.1,
       },
     });
 
-    const candidate = response.candidates?.[0];
-    if (!candidate) throw new Error("A infraestrutura de IA não devolveu candidatos.");
-    
-    // Fix: Access text property directly (not a method) as per guidelines
+    // Acesso direto à propriedade .text conforme as novas diretrizes
     let jsonText = response.text || "";
     
-    if (!jsonText && candidate.content?.parts) {
-      jsonText = candidate.content.parts.map(p => p.text || "").join("").trim();
-    }
+    if (!jsonText) throw new Error("A IA não retornou dados de rota.");
 
-    if (!jsonText) throw new Error("Resposta da IA vazia. Tente novamente.");
-
-    // Clean up potential markdown formatting if model ignored system instruction
+    // Limpeza de markdown caso o modelo inclua
     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
     
     let data;
@@ -104,17 +89,14 @@ export const analyzeRoute = async (
     } catch (e) {
         const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
         if (jsonMatch) data = JSON.parse(jsonMatch[0]);
-        else throw new Error("A IA gerou um formato de dados ilegível.");
+        else throw new Error("Erro ao interpretar dados da rota.");
     }
     
     const groundingUrls: string[] = [];
-    // Fix: Extract Maps URLs from groundingChunks as required by the Maps Grounding guidelines
-    const chunks = candidate.groundingMetadata?.groundingChunks;
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
         chunks.forEach((chunk: any) => {
-            if (chunk.maps?.uri) {
-                groundingUrls.push(chunk.maps.uri);
-            }
+            if (chunk.maps?.uri) groundingUrls.push(chunk.maps.uri);
         });
     }
 
@@ -124,7 +106,7 @@ export const analyzeRoute = async (
     };
 
   } catch (error: any) {
-    console.error("Erro Logística:", error);
-    throw new Error(error.message || "Falha ao processar os dados geográficos.");
+    console.error("Erro Logística Gemini:", error);
+    throw new Error("Erro na comunicação com a IA. Verifique a ligação.");
   }
 };

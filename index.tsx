@@ -14,12 +14,10 @@ interface ErrorBoundaryState {
 /**
  * ErrorBoundary Component
  * Captura erros de renderização para evitar que a aplicação inteira falhe.
- * Corrigido: Usando inicialização de propriedade para 'state' e removendo o construtor 
- * para garantir que TypeScript reconheça as propriedades herdadas de React.Component,
- * evitando erros de "Property does not exist".
+ * Corrigido: Estendendo de React.Component para garantir que o TypeScript reconheça this.props e this.state corretamente.
  */
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Inicialização de estado diretamente na classe para melhor suporte TS em comparação com o construtor
+  // Inicialização de estado diretamente na classe para melhor suporte TS
   state: ErrorBoundaryState = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: any): ErrorBoundaryState {
@@ -31,7 +29,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   render() {
-    // Acesso às propriedades herdadas de React.Component
+    // Acesso às propriedades herdadas de Component
     if (this.state.hasError) {
       const errorMsg = this.state.error?.message || 
         (typeof this.state.error === 'object' ? JSON.stringify(this.state.error) : String(this.state.error));
@@ -74,6 +72,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
+    // Corrigido: this.props.children agora deve ser reconhecido pelo TypeScript ao estender React.Component
     return this.props.children;
   }
 }
