@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Technician, ServiceDefinition, Visor, Vehicle } from '../types';
-import { X, Trash2, User, Globe, Truck, Monitor, Wrench, Database, Info, Key, CloudLightning, Palette } from 'lucide-react';
+import { X, Trash2, Plus, User, Briefcase, Lock, Key, Cloud, Share2, QrCode, Upload, Download, FileJson, Palette, Truck, Monitor, MapPin } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -19,133 +19,153 @@ interface SettingsModalProps {
   onRemoveVehicle: (id: string) => void;
   onAddVisor: (visor: Visor) => void;
   onRemoveVisor: (id: string) => void;
+  onUpdateTechnician?: (id: string, updates: Partial<Technician>) => void;
   onSetSyncKey: (key: string | null) => void;
   onCreateSyncKey: () => void;
-  supabaseUrl?: string;
-  supabaseKey?: string;
-  onSaveSupabaseConfig?: (url: string, key: string) => void;
+  onExportBackup: () => void;
+  onImportBackup: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const SERVICE_COLORS = [
-    { name: 'Red', class: 'bg-red-600' },
-    { name: 'Blue', class: 'bg-blue-600' },
-    { name: 'Emerald', class: 'bg-emerald-600' },
-    { name: 'Amber', class: 'bg-amber-600' },
-    { name: 'Purple', class: 'bg-purple-600' },
-    { name: 'Indigo', class: 'bg-indigo-600' },
-    { name: 'Slate', class: 'bg-slate-900' },
-    { name: 'Rose', class: 'bg-rose-500' },
-    { name: 'Orange', class: 'bg-orange-500' },
-    { name: 'Teal', class: 'bg-teal-600' },
-];
-
 export const SettingsModal: React.FC<SettingsModalProps> = ({
-  isOpen, onClose, technicians, services, vehicles, visores,
+  isOpen, onClose, 
+  technicians = [], services = [], vehicles = [], visores = [], 
+  syncKey,
   onAddTechnician, onRemoveTechnician, onAddService, onRemoveService, onAddVehicle, onRemoveVehicle,
-  onAddVisor, onRemoveVisor,
-  supabaseUrl = '', supabaseKey = '', onSaveSupabaseConfig
+  onAddVisor, onRemoveVisor, onSetSyncKey, onCreateSyncKey, onExportBackup, onImportBackup
 }) => {
-  const [activeTab, setActiveTab] = useState<'tech' | 'service' | 'fleet' | 'cloud' | 'sql'>('tech');
-  const [newName, setNewName] = useState('');
-  const [selectedColor, setSelectedColor] = useState('bg-red-600');
-  
-  const [url, setUrl] = useState(supabaseUrl);
-  const [key, setKey] = useState(supabaseKey);
+  const [activeTab, setActiveTab] = useState<'tech' | 'service' | 'vehicle' | 'visor' | 'cloud' | 'data'>('tech');
+  const [newTechName, setNewTechName] = useState('');
+  const [newTechPassword, setNewTechPassword] = useState('1234');
+  const [newTechBaseCP, setNewTechBaseCP] = useState('4705-471');
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServiceDuration, setNewServiceDuration] = useState(1);
+  const [newServiceColor, setNewServiceColor] = useState('bg-slate-100');
+  const [newVehicleName, setNewVehicleName] = useState('');
+  const [newVisorName, setNewVisorName] = useState('');
+  const [inputSyncKey, setInputSyncKey] = useState('');
 
   if (!isOpen) return null;
 
-  const sqlTables = `
--- SCHEMA COMPLETO PARA SUPABASE SQL EDITOR
+  const shareUrl = `${window.location.origin}${window.location.pathname}?key=${syncKey}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
 
-CREATE TABLE technicians (
-    id UUID PRIMARY KEY, 
-    name TEXT, 
-    password TEXT DEFAULT '1234', 
-    avatar_color TEXT
-);
+  const handleAddTech = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTechName) return;
+    onAddTechnician({ 
+      id: `tech-${Date.now()}`, 
+      name: newTechName, 
+      password: newTechPassword, 
+      basePostalCode: newTechBaseCP || '4705-471',
+      avatarColor: ['bg-blue-600', 'bg-emerald-600', 'bg-orange-600', 'bg-purple-600', 'bg-rose-600', 'bg-slate-800'][Math.floor(Math.random() * 6)] 
+    });
+    setNewTechName('');
+    setNewTechPassword('1234');
+    setNewTechBaseCP('4705-471');
+  };
 
-CREATE TABLE services (
-    id UUID PRIMARY KEY, 
-    name TEXT, 
-    default_duration INT, 
-    color_class TEXT
-);
+  const handleAddService = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newServiceName) return;
+    onAddService({ id: `svc-${Date.now()}`, name: newServiceName, defaultDuration: Number(newServiceDuration), colorClass: newServiceColor });
+    setNewServiceName('');
+    setNewServiceColor('bg-slate-100');
+  };
 
-CREATE TABLE vehicles (
-    id UUID PRIMARY KEY, 
-    name TEXT
-);
+  const handleAddVehicle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVehicleName) return;
+    onAddVehicle({ id: `v-${Date.now()}`, name: newVehicleName });
+    setNewVehicleName('');
+  };
 
-CREATE TABLE visores (
-    id UUID PRIMARY KEY, 
-    name TEXT
-);
+  const handleAddVisor = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVisorName) return;
+    onAddVisor({ id: `vis-${Date.now()}`, name: newVisorName });
+    setNewVisorName('');
+  };
 
-CREATE TABLE day_statuses (
-    id UUID PRIMARY KEY, 
-    technician_id UUID, 
-    date DATE, 
-    is_overnight BOOLEAN DEFAULT FALSE
-);
+  const serviceColors = [
+    { label: 'Cinza', value: 'bg-slate-100' },
+    { label: 'Azul', value: 'bg-blue-600' },
+    { label: 'Verde', value: 'bg-emerald-600' },
+    { label: 'Laranja', value: 'bg-orange-500' },
+    { label: 'Roxo', value: 'bg-purple-600' },
+    { label: 'Rosa', value: 'bg-rose-500' },
+    { label: 'Escuro', value: 'bg-slate-900' },
+  ];
 
-CREATE TABLE tickets (
-    id UUID PRIMARY KEY,
-    ticket_number TEXT,
-    customer_name TEXT,
-    address TEXT,
-    locality TEXT,
-    service_id UUID REFERENCES services(id),
-    vehicle_id UUID REFERENCES vehicles(id),
-    visor_id UUID REFERENCES visores(id),
-    status TEXT,
-    scheduled_date DATE,
-    scheduled_time TIME,
-    technician_ids TEXT[], -- Armazena IDs como array
-    process_number TEXT,
-    fault_description TEXT,
-    duration INT DEFAULT 1,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);`.trim();
+  const getTabClass = (id: string) => {
+    const isActive = activeTab === id;
+    let base = "flex-1 min-w-[100px] py-4 text-[10px] font-bold uppercase tracking-widest border-b-4 transition-all ";
+    if (id === 'cloud' || id === 'data') {
+        const color = id === 'cloud' ? 'emerald' : 'blue';
+        return base + (isActive ? `border-${color}-600 text-${color}-600 bg-${color}-50/30` : `border-transparent text-slate-400 hover:text-slate-600`);
+    }
+    return base + (isActive ? 'border-red-600 text-red-600 bg-red-50/30' : 'border-transparent text-slate-400 hover:text-slate-600');
+  };
 
   return (
-    <div className="fixed inset-0 bg-[#0c1621]/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[85vh] border border-slate-200">
-        <div className="flex justify-between items-center p-8 border-b border-slate-100 bg-slate-50">
-          <div>
-               <h2 className="text-2xl text-[#336791] font-black uppercase tracking-tight">Painel de Administração</h2>
-               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gestão de Recursos e Sincronização SQL</p>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-[750px] border border-slate-200">
+        <div className="flex justify-between items-center p-8 border-b border-slate-100 bg-slate-50 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-900 p-2 rounded-xl shadow-lg"><Briefcase className="text-white" size={24} /></div>
+            <div>
+               <h2 className="text-2xl text-slate-900 font-bold uppercase tracking-tight">Definições</h2>
+               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Configuração do Sistema</p>
+            </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-red-600 p-2 bg-white rounded-full border border-slate-200 transition-all"><X size={24} /></button>
         </div>
 
-        <div className="flex border-b border-slate-200 bg-white overflow-x-auto no-scrollbar">
-          <button onClick={() => setActiveTab('tech')} className={`min-w-[120px] flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'tech' ? 'text-[#336791] border-b-4 border-[#336791] bg-blue-50/20' : 'text-slate-400'}`}>Técnicos</button>
-          <button onClick={() => setActiveTab('service')} className={`min-w-[120px] flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'service' ? 'text-red-600 border-b-4 border-red-600 bg-red-50/20' : 'text-slate-400'}`}>Serviços</button>
-          <button onClick={() => setActiveTab('fleet')} className={`min-w-[120px] flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'fleet' ? 'text-emerald-600 border-b-4 border-emerald-600 bg-emerald-50/20' : 'text-slate-400'}`}>Frota & Visores</button>
-          <button onClick={() => setActiveTab('cloud')} className={`min-w-[120px] flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'cloud' ? 'text-[#336791] border-b-4 border-[#336791] bg-blue-50/20' : 'text-slate-400'}`}>Cloud</button>
-          <button onClick={() => setActiveTab('sql')} className={`min-w-[120px] flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'sql' ? 'text-amber-600 border-b-4 border-amber-600 bg-amber-50/20' : 'text-slate-400'}`}>SQL Editor</button>
+        <div className="flex border-b border-slate-200 bg-white shrink-0 overflow-x-auto no-scrollbar">
+          <button onClick={() => setActiveTab('tech')} className={getTabClass('tech')}>Técnicos</button>
+          <button onClick={() => setActiveTab('service')} className={getTabClass('service')}>Serviços</button>
+          <button onClick={() => setActiveTab('vehicle')} className={getTabClass('vehicle')}>Frota</button>
+          <button onClick={() => setActiveTab('visor')} className={getTabClass('visor')}>Visores</button>
+          <button onClick={() => setActiveTab('cloud')} className={getTabClass('cloud')}>Cloud</button>
+          <button onClick={() => setActiveTab('data')} className={getTabClass('data')}>Backup</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 bg-white custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-10 bg-white custom-scrollbar">
           
           {activeTab === 'tech' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
-                <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 flex gap-4">
-                    <div className="relative flex-1">
-                        <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input type="text" placeholder="Nome do Técnico..." className="w-full pl-12 pr-6 py-4 border-2 border-slate-200 rounded-2xl font-bold bg-white focus:border-[#336791] outline-none transition-all uppercase text-sm" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddTech} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-4">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2"><Plus size={14}/> Adicionar Técnico</h3>
+                    <div className="flex flex-wrap gap-3">
+                        <div className="relative flex-1 min-w-[200px]">
+                            <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input type="text" required placeholder="Nome..." className="w-full pl-12 pr-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={newTechName} onChange={(e) => setNewTechName(e.target.value)} />
+                        </div>
+                        <div className="relative w-32">
+                            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input type="text" required placeholder="PIN" maxLength={4} className="w-full pl-9 pr-4 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={newTechPassword} onChange={(e) => setNewTechPassword(e.target.value)} />
+                        </div>
+                        <div className="relative w-40">
+                            <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input type="text" placeholder="CP Base" className="w-full pl-9 pr-4 py-4 border border-slate-300 rounded-2xl font-bold bg-white text-slate-900 outline-none" value={newTechBaseCP} onChange={(e) => setNewTechBaseCP(e.target.value)} />
+                        </div>
+                        <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] shadow-xl hover:bg-red-700 transition-all">Registar</button>
                     </div>
-                    <button onClick={() => { if(newName) { onAddTechnician({ id: crypto.randomUUID(), name: newName, password: '1234', avatarColor: 'bg-slate-800' }); setNewName(''); } }} className="px-10 py-4 bg-[#336791] text-white rounded-2xl font-black uppercase text-[11px] shadow-lg hover:bg-blue-800 transition-all">Registar</button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                </form>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {technicians.map(t => (
-                        <div key={t.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-slate-100 hover:border-blue-100 transition-all">
+                        <div key={t.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 hover:border-red-200 transition-all">
                             <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-xl ${t.avatarColor} text-white flex items-center justify-center font-black shadow-md`}>{t.name.substring(0, 2).toUpperCase()}</div>
-                                <span className="font-black text-sm uppercase text-slate-900">{t.name}</span>
+                                <div className={`w-10 h-10 rounded-xl ${t.avatarColor} text-white flex items-center justify-center font-bold shadow-md`}>{t.name.substring(0, 2).toUpperCase()}</div>
+                                <div>
+                                  <p className="font-bold text-sm uppercase text-slate-900">{t.name}</p>
+                                  <div className="flex gap-2">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">PIN: {t.password || '1234'}</p>
+                                    <span className="text-slate-200 text-[9px]">|</span>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><MapPin size={8} /> {t.basePostalCode || '4705-471'}</p>
+                                  </div>
+                                </div>
                             </div>
-                            <button onClick={() => onRemoveTechnician(t.id)} className="text-slate-300 hover:text-red-600 p-2 transition-all"><Trash2 size={20}/></button>
+                            <button onClick={() => onRemoveTechnician(t.id)} className="text-slate-300 hover:text-red-600 p-2 hover:bg-red-50 rounded-xl"><Trash2 size={18}/></button>
                         </div>
                     ))}
                 </div>
@@ -153,122 +173,108 @@ CREATE TABLE tickets (
           )}
 
           {activeTab === 'service' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
-                <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 space-y-4">
-                    <div className="flex gap-4">
-                        <div className="relative flex-1">
-                            <Wrench size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input type="text" placeholder="Nome do Serviço (ex: Reconstrução)..." className="w-full pl-12 pr-6 py-4 border-2 border-slate-200 rounded-2xl font-bold bg-white focus:border-red-600 outline-none transition-all uppercase text-sm" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddService} className="bg-slate-50 p-8 rounded-3xl border border-slate-200 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nome do Serviço</label>
+                            <input type="text" required className="w-full px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
                         </div>
-                        <button onClick={() => { if(newName) { onAddService({ id: crypto.randomUUID(), name: newName, defaultDuration: 1, colorClass: selectedColor }); setNewName(''); } }} className="px-10 py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-[11px] shadow-lg hover:bg-red-800 transition-all">Adicionar</button>
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Duração (Horas)</label>
+                            <input type="number" required min={0.5} step={0.5} className="w-full px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white" value={newServiceDuration} onChange={(e) => setNewServiceDuration(Number(e.target.value))} />
+                        </div>
                     </div>
-                    
                     <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                            <Palette size={14} /> Selecione a cor do serviço:
-                        </label>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cor</label>
                         <div className="flex flex-wrap gap-2">
-                            {SERVICE_COLORS.map(color => (
-                                <button 
-                                    key={color.class} 
-                                    onClick={() => setSelectedColor(color.class)}
-                                    className={`w-8 h-8 rounded-full border-4 transition-all ${color.class} ${selectedColor === color.class ? 'border-white ring-2 ring-slate-900 scale-110' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                                    title={color.name}
-                                />
+                            {serviceColors.map(c => (
+                                <button key={c.value} type="button" onClick={() => setNewServiceColor(c.value)} className={`w-8 h-8 rounded-full border-2 transition-all ${c.value} ${newServiceColor === c.value ? 'ring-4 ring-red-100 border-red-600 scale-110' : 'border-transparent'}`} />
                             ))}
                         </div>
                     </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase text-[11px] shadow-xl">Adicionar Serviço</button>
+                </form>
+                <div className="space-y-3">
                     {services.map(s => (
-                        <div key={s.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-slate-50 shadow-sm">
-                            <div className="flex items-center gap-4">
-                                <div className={`w-4 h-10 rounded-lg ${s.colorClass} shadow-inner`} />
-                                <p className="font-black text-sm uppercase text-slate-900">{s.name}</p>
-                            </div>
-                            <button onClick={() => onRemoveService(s.id)} className="text-slate-200 hover:text-red-600 p-2 transition-colors"><Trash2 size={20}/></button>
+                        <div key={s.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                            <div className="flex items-center gap-4"><div className={`w-4 h-10 rounded-full ${s.colorClass}`} /><div><p className="font-bold text-sm uppercase text-slate-900">{s.name}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{s.defaultDuration}H Estimadas</p></div></div>
+                            <button onClick={() => onRemoveService(s.id)} className="text-slate-300 hover:text-red-600 p-2"><Trash2 size={18}/></button>
                         </div>
                     ))}
                 </div>
             </div>
           )}
 
-          {activeTab === 'fleet' && (
-            <div className="space-y-12 animate-in fade-in duration-300">
-                <div className="space-y-6">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Truck size={16} className="text-emerald-600" /> Gestão de Frota (Veículos)</h3>
-                    <div className="bg-slate-50 p-4 rounded-[1.5rem] border border-slate-200 flex gap-4">
-                        <input type="text" placeholder="Identificação da Viatura..." className="flex-1 px-5 py-3 border-2 border-slate-200 rounded-xl font-bold bg-white focus:border-emerald-600 outline-none transition-all uppercase text-sm" value={newName} onChange={(e) => setNewName(e.target.value)} />
-                        <button onClick={() => { if(newName) { onAddVehicle({ id: crypto.randomUUID(), name: newName }); setNewName(''); } }} className="px-8 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] shadow-lg">Registar</button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {vehicles.map(v => (
-                            <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200">
-                                <span className="font-bold text-sm uppercase text-slate-900">{v.name}</span>
-                                <button onClick={() => onRemoveVehicle(v.id)} className="text-slate-300 hover:text-red-600 p-1.5"><Trash2 size={16}/></button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="space-y-6 pt-6 border-t border-slate-100">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Monitor size={16} className="text-blue-600" /> Lista de Visores</h3>
-                    <div className="bg-slate-50 p-4 rounded-[1.5rem] border border-slate-200 flex gap-4">
-                        <input type="text" placeholder="Nome do Visor/Equipamento..." className="flex-1 px-5 py-3 border-2 border-slate-200 rounded-xl font-bold bg-white focus:border-blue-600 outline-none transition-all uppercase text-sm" value={newName} onChange={(e) => setNewName(e.target.value)} />
-                        <button onClick={() => { if(newName) { onAddVisor({ id: crypto.randomUUID(), name: newName }); setNewName(''); } }} className="px-8 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] shadow-lg">Adicionar</button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {visores.map(vs => (
-                            <div key={vs.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200">
-                                <span className="font-bold text-sm uppercase text-slate-900">{vs.name}</span>
-                                <button onClick={() => onRemoveVisor(vs.id)} className="text-slate-300 hover:text-red-600 p-1.5"><Trash2 size={16}/></button>
-                            </div>
-                        ))}
-                    </div>
+          {activeTab === 'vehicle' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddVehicle} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 flex gap-3">
+                    <input type="text" required placeholder="Viatura..." className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white" value={newVehicleName} onChange={(e) => setNewVehicleName(e.target.value)} />
+                    <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] shadow-xl">Adicionar</button>
+                </form>
+                <div className="grid grid-cols-2 gap-4">
+                    {vehicles.map(v => (
+                        <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                            <span className="font-bold text-sm uppercase">{v.name}</span>
+                            <button onClick={() => onRemoveVehicle(v.id)} className="text-slate-300 hover:text-red-600 p-2"><Trash2 size={18}/></button>
+                        </div>
+                    ))}
                 </div>
             </div>
           )}
 
-          {activeTab === 'cloud' && (
-            <div className="space-y-8 animate-in zoom-in-95 duration-300">
-                <div className="bg-[#336791]/5 p-8 rounded-[2rem] border-2 border-[#336791]/10">
-                    <div className="flex items-center gap-4 mb-6">
-                        <Globe className="text-[#336791]" size={32} />
-                        <div>
-                            <h3 className="text-lg font-black text-slate-900 uppercase">Configuração SQL Cloud</h3>
-                            <p className="text-[10px] font-bold text-[#336791] uppercase">Base de Dados PostgreSQL Multi-Posto</p>
+          {activeTab === 'visor' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <form onSubmit={handleAddVisor} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 flex gap-3">
+                    <input type="text" required placeholder="Modelo Equipamento..." className="flex-1 px-6 py-4 border border-slate-300 rounded-2xl font-bold bg-white" value={newVisorName} onChange={(e) => setNewVisorName(e.target.value)} />
+                    <button type="submit" className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold uppercase text-[11px] shadow-xl">Registar</button>
+                </form>
+                <div className="grid grid-cols-2 gap-4">
+                    {visores.map(v => (
+                        <div key={v.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200">
+                            <span className="font-bold text-sm uppercase text-slate-700">{v.name}</span>
+                            <button onClick={() => onRemoveVisor(v.id)} className="text-slate-300 hover:text-red-600 p-2"><Trash2 size={18}/></button>
                         </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Project URL (Supabase)</label>
-                            <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} className="w-full px-5 py-3 border-2 border-slate-200 rounded-xl font-mono text-xs outline-none focus:border-[#336791] transition-all" />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Anon Key / API Key</label>
-                            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} className="w-full px-5 py-3 border-2 border-slate-200 rounded-xl font-mono text-xs outline-none focus:border-[#336791] transition-all" />
-                        </div>
-                        <button onClick={() => onSaveSupabaseConfig?.(url, key)} className="w-full bg-[#336791] text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
-                            <CloudLightning size={18} /> ATIVAR LIGAÇÃO SQL EM TEMPO REAL
-                        </button>
-                    </div>
+                    ))}
                 </div>
             </div>
           )}
 
-          {activeTab === 'sql' && (
-              <div className="space-y-6 animate-in fade-in">
-                  <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-4 opacity-10 text-white"><Database size={100} /></div>
-                      <h4 className="text-amber-500 font-mono text-[10px] mb-4 uppercase tracking-widest flex items-center gap-2"><Key size={14}/> SQL Schema (IMPORTANTE: Copie isto para o SQL Editor do Supabase)</h4>
-                      <pre className="text-blue-300 font-mono text-[10px] leading-relaxed overflow-x-auto whitespace-pre custom-scrollbar bg-black/50 p-6 rounded-2xl border border-white/10">
-                          {sqlTables}
-                      </pre>
-                  </div>
-              </div>
-          )}
+          {activeTab === 'cloud' || activeTab === 'data' ? (
+            <div className="animate-in fade-in duration-300">
+                {activeTab === 'cloud' && (
+                    <div className="bg-emerald-50 p-10 rounded-[2.5rem] border border-emerald-100 flex flex-col items-center text-center">
+                        <Cloud className="text-emerald-600 mb-6" size={48} />
+                        <h3 className="text-2xl font-black text-emerald-900 uppercase tracking-tight mb-2">Sincronização Cloud</h3>
+                        {!syncKey ? (
+                            <button onClick={onCreateSyncKey} className="bg-emerald-600 text-white px-12 py-5 rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl hover:bg-emerald-700 transition-all flex items-center gap-3">
+                                Ativar Cloud
+                            </button>
+                        ) : (
+                            <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-200 shadow-xl w-full max-w-lg">
+                                <p className="text-xs font-mono font-bold text-slate-900 mb-4">{syncKey}</p>
+                                <img src={qrCodeUrl} alt="QR Code" className="w-40 h-40 mx-auto" />
+                            </div>
+                        )}
+                    </div>
+                )}
+                {activeTab === 'data' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="bg-blue-50 p-10 rounded-[2.5rem] border border-blue-100 flex flex-col items-center text-center">
+                            <Download className="text-blue-600 mb-6" size={40} />
+                            <button onClick={onExportBackup} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px]">Exportar Backup</button>
+                        </div>
+                        <div className="bg-slate-900 p-10 rounded-[2.5rem] border border-slate-800 flex flex-col items-center text-center">
+                            <Upload className="text-white mb-6" size={40} />
+                            <label className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] cursor-pointer text-center">
+                                Restaurar Backup
+                                <input type="file" accept=".json" onChange={onImportBackup} className="hidden" />
+                            </label>
+                        </div>
+                    </div>
+                )}
+            </div>
+          ) : null}
 
         </div>
       </div>

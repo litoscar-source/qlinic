@@ -17,7 +17,7 @@ export interface ServiceDefinition {
   id: string;
   name: string;
   defaultDuration: number;
-  colorClass: string; 
+  colorClass: string; // Tailwind bg class
 }
 
 export interface Visor {
@@ -30,33 +30,16 @@ export interface Technician {
   name: string;
   avatarColor: string;
   password?: string;
+  basePostalCode?: string; // Novo campo para código postal de base/residência
 }
 
-/**
- * Estrutura de Linha PostgreSQL (Relacional)
- * Campos de metadados tornados opcionais para compatibilidade com formulários de criação.
- */
-export interface PostgresRow {
-  id: string; // UUID ou Serial
-  created_at?: string;
-  updated_at?: string;
-  version?: number;
-}
-
-export interface User {
+export interface Ticket {
   id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'viewer' | 'technician';
-  technicianId?: string;
-}
-
-export interface Ticket extends PostgresRow {
-  technicianIds: string[]; // Mapeado da tabela de junção tickets_technicians
+  technicianIds: string[];
   ticketNumber: string;
   customerName: string;
   address: string;
-  vehicleId: string;
+  vehicleId: string; // Referência ao ID do veículo
   serviceId: string;
   visorId?: string;
   status: TicketStatus;
@@ -68,32 +51,34 @@ export interface Ticket extends PostgresRow {
   locality?: string;
   processNumber?: string;
   faultDescription?: string;
-  // Aliases for persistence mapping
-  scheduled_date?: string;
-  scheduled_time?: string;
-}
-
-export interface DayStatus extends PostgresRow {
-  technicianId: string;
-  date: Date;
-  isOvernight: boolean;
-  // Aliases for persistence mapping
-  technician_id?: string;
-  is_overnight?: boolean;
-}
-
-export interface RouteSegment {
-  from: string;
-  to: string;
-  estimatedTime: string;
-  distance: string;
+  updatedAt?: number; 
 }
 
 export interface RouteAnalysis {
   totalTime: string;
   totalDistance: string;
-  segments: RouteSegment[];
+  segments: {
+    from: string;
+    to: string;
+    estimatedTime: string;
+    distance: string;
+  }[];
   groundingUrls: string[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'technician' | 'viewer';
+  technicianId?: string;
+}
+
+export interface DayStatus {
+  id: string;
+  technicianId: string;
+  date: Date;
+  isOvernight: boolean;
 }
 
 export interface CloudData {
@@ -101,7 +86,7 @@ export interface CloudData {
   services: ServiceDefinition[];
   vehicles: Vehicle[];
   tickets: Ticket[];
-  day_statuses: any[]; 
+  dayStatuses: DayStatus[];
   visores: Visor[];
-  last_sync: number;
+  lastSync: number;
 }

@@ -1,9 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Ticket, TicketStatus, Technician, ServiceDefinition, Vehicle } from '../types';
-import { Search, Filter, ArrowUpDown, Clock, MapPin, User, ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Truck } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, Clock, MapPin, ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Truck, FileText } from 'lucide-react';
 import { format } from 'date-fns';
-import { pt } from 'date-fns/locale';
 
 interface ListViewProps {
   tickets: Ticket[];
@@ -12,17 +11,10 @@ interface ListViewProps {
   vehicles: Vehicle[];
   onEditTicket: (ticket: Ticket) => void;
   onUpdateTicket: (ticketId: string, updates: Partial<Ticket>) => void;
-  isReadOnly?: boolean;
 }
 
 export const ListView: React.FC<ListViewProps> = ({
-  tickets,
-  technicians,
-  services,
-  vehicles,
-  onEditTicket,
-  onUpdateTicket,
-  isReadOnly = false
+  tickets, technicians, services, vehicles, onEditTicket, onUpdateTicket
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<TicketStatus | 'all'>('all');
@@ -34,10 +26,10 @@ export const ListView: React.FC<ListViewProps> = ({
         const matchesSearch = 
           t.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           t.ticketNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (t.locality && t.locality.toLowerCase().includes(searchTerm.toLowerCase()));
+          (t.locality && t.locality.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (t.address && t.address.toLowerCase().includes(searchTerm.toLowerCase()));
         
         const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
-        
         return matchesSearch && matchesStatus;
       })
       .sort((a, b) => {
@@ -47,55 +39,43 @@ export const ListView: React.FC<ListViewProps> = ({
       });
   }, [tickets, searchTerm, statusFilter, sortOrder]);
 
-  const getStatusIcon = (status: TicketStatus) => {
+  const getStatusBadge = (status: TicketStatus) => {
+    const baseCls = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ";
     switch (status) {
-      case TicketStatus.RESOLVIDO: return <CheckCircle2 size={16} className="text-emerald-600" />;
-      case TicketStatus.PARCIALMENTE_RESOLVIDO: return <AlertCircle size={16} className="text-orange-600" />;
-      case TicketStatus.NAO_CONFIRMADO: return <HelpCircle size={16} className="text-rose-600" />;
-      default: return <Clock size={16} className="text-slate-500" />;
-    }
-  };
-
-  const getStatusBadgeClass = (status: TicketStatus) => {
-    switch (status) {
-      case TicketStatus.RESOLVIDO: return 'bg-emerald-100 text-emerald-900 border-emerald-300';
-      case TicketStatus.CONFIRMADO: return 'bg-slate-800 text-white border-slate-900';
-      case TicketStatus.NAO_CONFIRMADO: return 'bg-rose-100 text-rose-900 border-rose-300';
-      case TicketStatus.PARCIALMENTE_RESOLVIDO: return 'bg-orange-100 text-orange-900 border-orange-300';
-      default: return 'bg-slate-100 text-slate-700 border-slate-300';
+      case TicketStatus.RESOLVIDO: return <span className={baseCls + "bg-emerald-50 text-emerald-700 border-emerald-200"}><CheckCircle2 size={10} /> {status}</span>;
+      case TicketStatus.CONFIRMADO: return <span className={baseCls + "bg-slate-900 text-white border-slate-900"}><CheckCircle2 size={10} /> {status}</span>;
+      case TicketStatus.PARCIALMENTE_RESOLVIDO: return <span className={baseCls + "bg-orange-50 text-orange-700 border-orange-200"}><AlertCircle size={10} /> {status}</span>;
+      default: return <span className={baseCls + "bg-slate-50 text-slate-500 border-slate-200"}><Clock size={10} /> {status}</span>;
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl shadow-md border border-slate-300 overflow-hidden font-sans antialiased">
-      <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-4 items-center justify-between">
+    <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden font-sans">
+      <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-4 items-center justify-between">
         <div className="relative flex-1 min-w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text"
-            placeholder="Pesquisar por cliente, ticket ou localidade..."
-            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 font-semibold text-sm transition-all"
+            placeholder="Pesquisar por cliente, ticket, localidade ou morada..."
+            className="w-full pl-12 pr-6 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-red-100 focus:border-red-600 font-bold text-sm transition-all shadow-inner"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Filter size={14} className="text-slate-500" />
-            <select 
-              className="px-3 py-2 border border-slate-300 rounded-lg outline-none text-[11px] font-bold uppercase tracking-widest bg-white text-slate-900"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-            >
-              <option value="all">TODOS OS ESTADOS</option>
-              {Object.values(TicketStatus).map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-            </select>
-          </div>
+          <select 
+            className="px-5 py-3 border border-slate-200 rounded-2xl outline-none text-[10px] font-black uppercase tracking-widest bg-white text-slate-700 shadow-sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+          >
+            <option value="all">TODOS OS ESTADOS</option>
+            {Object.values(TicketStatus).map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
 
           <button 
             onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors text-[11px] font-bold uppercase tracking-widest text-slate-900 shadow-sm"
+            className="flex items-center gap-3 px-6 py-3 border border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-all text-[10px] font-black uppercase tracking-widest text-slate-700 shadow-sm"
           >
             <ArrowUpDown size={14} /> {sortOrder === 'desc' ? 'MAIS RECENTE' : 'MAIS ANTIGO'}
           </button>
@@ -104,73 +84,67 @@ export const ListView: React.FC<ListViewProps> = ({
 
       <div className="flex-1 overflow-auto custom-scrollbar">
         <table className="w-full border-collapse">
-          <thead className="sticky top-0 z-10 bg-slate-100 border-b border-slate-300 shadow-sm">
+          <thead className="sticky top-0 z-10 bg-slate-100 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Data / Hora</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Técnico</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Cliente / Ticket</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Serviço / Viatura</th>
-              <th className="px-6 py-3 text-left text-[10px] font-bold text-slate-600 uppercase tracking-widest">Estado</th>
-              <th className="px-6 py-3 text-center text-[10px] font-bold text-slate-600 uppercase tracking-widest">Ações</th>
+              <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Data / Hora</th>
+              <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Equipa Alocada</th>
+              <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Cliente / Ticket</th>
+              <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Serviço / Viatura</th>
+              <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Estado</th>
+              <th className="px-8 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-100">
             {filteredTickets.map(ticket => {
-              const tech = technicians.filter(t => ticket.technicianIds.includes(t.id));
+              const techList = technicians.filter(t => ticket.technicianIds.includes(t.id));
               const service = services.find(s => s.id === ticket.serviceId);
               const vehicle = vehicles.find(v => v.id === ticket.vehicleId);
               
               return (
-                <tr key={ticket.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                <tr key={ticket.id} className="hover:bg-slate-50/80 transition-all group cursor-pointer" onClick={() => onEditTicket(ticket)}>
+                  <td className="px-8 py-5">
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-900">{format(ticket.date, 'dd/MM/yyyy')}</span>
-                      <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1 uppercase tracking-tight">
+                      <span className="text-sm font-black text-slate-900">{format(new Date(ticket.date), 'dd/MM/yyyy')}</span>
+                      <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-tight">
                         <Clock size={10} /> {ticket.scheduledTime}
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex -space-x-1.5 overflow-hidden">
-                      {tech.map(t => (
-                        <div key={t.id} className={`inline-block h-7 w-7 rounded-full ring-2 ring-white flex items-center justify-center text-[9px] font-bold text-white shadow-sm ${t.avatarColor}`} title={t.name}>
+                  <td className="px-8 py-5">
+                    <div className="flex -space-x-2">
+                      {techList.map(t => (
+                        <div key={t.id} className={`h-8 w-8 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-black text-white shadow-sm ${t.avatarColor}`} title={t.name}>
                           {t.name.substring(0, 2).toUpperCase()}
                         </div>
                       ))}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-900 uppercase tracking-tight">{ticket.customerName}</span>
+                  <td className="px-8 py-5">
+                    <div className="flex flex-col max-w-[250px]">
+                      <span className="text-sm font-black text-slate-900 uppercase tracking-tighter truncate">{ticket.customerName}</span>
                       <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200 uppercase tracking-wider">#{ticket.ticketNumber}</span>
+                        <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">#{ticket.ticketNumber}</span>
                         {ticket.locality && (
-                          <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1 uppercase">
+                          <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-tighter truncate">
                             <MapPin size={10} /> {ticket.locality}
                           </span>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-8 py-5">
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-tight">{service?.name || 'OUTRO'}</span>
-                      <span className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">
-                        <Truck size={10} className="text-slate-400" /> {vehicle?.name || 'SEM VIATURA'}
+                      <span className="text-[11px] font-black text-slate-800 uppercase tracking-tighter">{service?.name || 'OUTRO'}</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
+                        <Truck size={10} className="text-slate-300" /> {vehicle?.name || 'PENDENTE'}
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-widest ${getStatusBadgeClass(ticket.status)} shadow-sm`}>
-                      {getStatusIcon(ticket.status)}
-                      {ticket.status}
-                    </span>
+                  <td className="px-8 py-5">
+                    {getStatusBadge(ticket.status)}
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <button 
-                      onClick={() => onEditTicket(ticket)}
-                      className="p-2 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all active:scale-90"
-                    >
+                  <td className="px-8 py-5 text-center">
+                    <button className="p-2 text-slate-300 group-hover:text-red-600 group-hover:bg-red-50 rounded-xl transition-all">
                       <ChevronRight size={20} />
                     </button>
                   </td>
@@ -179,8 +153,11 @@ export const ListView: React.FC<ListViewProps> = ({
             })}
             {filteredTickets.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-24 text-center text-slate-400 italic font-semibold uppercase tracking-widest">
-                  Nenhum serviço encontrado com os filtros atuais.
+                <td colSpan={6} className="px-8 py-32 text-center">
+                  <div className="flex flex-col items-center gap-4 text-slate-300">
+                    <FileText size={48} className="opacity-20" />
+                    <p className="text-[11px] font-black uppercase tracking-[0.3em]">Nenhum serviço encontrado</p>
+                  </div>
                 </td>
               </tr>
             )}
@@ -188,15 +165,12 @@ export const ListView: React.FC<ListViewProps> = ({
         </table>
       </div>
       
-      <div className="px-6 py-3 bg-slate-100 border-t border-slate-300 flex items-center justify-between text-[10px] font-bold text-slate-600 uppercase tracking-widest">
-        <span>Total de {filteredTickets.length} serviços listados</span>
-        <div className="flex items-center gap-5">
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div> <span className="text-emerald-700">Resolvido</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div> <span className="text-rose-700">Pendente</span>
-          </div>
+      <div className="px-8 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">
+        <span>Listagem de {filteredTickets.length} serviços agendados</span>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500" /> <span className="text-slate-600">Resolvido</span></div>
+          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-slate-900" /> <span className="text-slate-600">Confirmado</span></div>
+          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500" /> <span className="text-slate-600">Parcial</span></div>
         </div>
       </div>
     </div>

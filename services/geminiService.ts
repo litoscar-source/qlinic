@@ -4,115 +4,137 @@ import { Ticket, RouteAnalysis } from "../types";
 
 declare var process: any;
 
+/**
+ * Serviço de análise de rotas otimizado para o território português
+ * Utiliza o código postal base do técnico ou a sede 4705-471 como ponto de partida/chegada.
+ */
 export const analyzeRoute = async (
     tickets: Ticket[], 
     technicianName: string,
     context: {
         yesterdayOvernight: boolean;
         todayOvernight: boolean;
+        basePostalCode?: string; // Código postal de base do técnico
+        previousDayLastLocation?: string; // Endereço/CP7 do último cliente de ontem
+        userLocation?: { latitude: number; longitude: number };
     }
-): Promise<RouteAnalysis> => {
+): Promise<RouteAnalysis & { travelUpdates: { ticketId: string, travelTimeMinutes: number }[] }> => {
   if (tickets.length === 0) {
     throw new Error("São necessários serviços para calcular uma rota.");
   }
 
-  // Initialize GenAI client. Maps grounding and thinking config require Gemini 2.5 or 3 series models.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-  // Fix: use camelCase property names as defined in the updated types.ts
   const sortedTickets = [...tickets].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
 
   const stops = sortedTickets.map((t, index) => 
-    `${index + 1}. [H: ${t.scheduledTime}] Cliente: ${t.customerName}, CP7: ${t.address}, Localidade: ${t.locality || 'N/A'}`
+    `${index + 1}. [ID: ${t.id}] [Hora: ${t.scheduledTime}] Cliente: ${t.customerName}, CP7: ${t.address}, Cidade: ${t.locality || 'N/A'}`
   ).join("\n");
 
-  const headquarters = "4705-471, Braga, Portugal";
+  const DEFAULT_HEADQUARTERS = "4705-471, Braga, Portugal";
+  const technicianBase = context.basePostalCode ? `${context.basePostalCode}, Portugal` : DEFAULT_HEADQUARTERS;
 
-  let routingLogicDescription = "";
+  let routingContext = `A base de operação para este técnico é: ${technicianBase}.\n`;
+  
+  // LÓGICA DE PARTIDA (INÍCIO DO DIA)
   if (context.yesterdayOvernight) {
-      routingLogicDescription += "- INÍCIO: Técnico já no terreno (dormiu fora). Começar no 1º cliente.\n";
+      if (context.previousDayLastLocation) {
+          routingContext += `- O técnico dormiu fora ontem. A jornada de hoje COMEÇA no local do último cliente de ontem: ${context.previousDayLastLocation}.\n`;
+          routingContext += `- O tempo de viagem para o 1º cliente de hoje deve ser calculado a partir de ${context.previousDayLastLocation}.\n`;
+      } else {
+          routingContext += `- O técnico dormiu fora ontem. Inicie o cálculo diretamente no 1º cliente (tempo de viagem inicial = 0).\n`;
+      }
   } else {
-      routingLogicDescription += `- INÍCIO: Partida da sede em Braga (${headquarters}).\n`;
+      routingContext += `- PARTIDA DA BASE: O técnico sai obrigatoriamente da sua base (${technicianBase}) em direção ao 1º cliente.\n`;
   }
 
+  // LÓGICA DE CHEGADA (FIM DO DIA)
   if (context.todayOvernight) {
-      routingLogicDescription += "- FIM: Técnico dorme fora. Rota termina no último cliente.\n";
+      routingContext += "- O técnico DORME FORA hoje. A jornada termina no local do último cliente. NÃO calcule o regresso à base.\n";
   } else {
-      routingLogicDescription += `- FIM: Regresso obrigatório à sede (${headquarters}).\n`;
+      routingContext += `- REGRESSO À BASE: O técnico deve regressar à sua base (${technicianBase}) após o último cliente de hoje. Inclua este tempo no tempo total de condução.\n`;
   }
 
   const prompt = `
-    Como especialista em logística em PORTUGAL, calcule a rota mais eficiente para o técnico ${technicianName}.
+    Como especialista em logística em Portugal, analise o percurso do técnico ${technicianName}.
     
-    DIRETRIZES:
-    ${routingLogicDescription}
+    LOGÍSTICA DE BASE E DORMIDAS:
+    ${routingContext}
     
-    PARAGENS:
+    LISTA DE CLIENTES DE HOJE:
     ${stops}
 
-    REGRAS:
-    1. PRIORIDADE AO CÓDIGO POSTAL (CP7).
-    2. Calcule tempos de deslocação reais.
-    3. Retorne APENAS um objeto JSON puro.
+    TAREFAS:
+    1. Calcule tempos e distâncias reais entre códigos postais (CP7).
+    2. "travelTimeMinutes": Tempo de condução que antecede cada cliente. 
+       - Se ontem houve dormida, o 1º cliente recebe o tempo desde o local de pernoita.
+       - Se ontem NÃO houve dormida, o 1º cliente recebe o tempo desde a base (${technicianBase}).
+    3. Calcule o tempo total de condução acumulado do dia.
+    4. Forneça o resultado EXCLUSIVAMENTE em formato JSON limpo.
 
-    ESTRUTURA:
+    ESTRUTURA DO JSON:
     {
-      "totalTime": "tempo total",
-      "totalDistance": "km totais",
+      "totalTime": "string (ex: 3h 10m)",
+      "totalDistance": "string (ex: 245 km)",
       "segments": [
-        { "from": "A", "to": "B", "estimatedTime": "X min", "distance": "Y km" }
+        { "from": "Local A", "to": "Local B", "estimatedTime": "X min", "distance": "Y km" }
+      ],
+      "travelUpdates": [
+        { "ticketId": "id_do_ticket", "travelTimeMinutes": 45 }
       ]
     }
   `;
 
   try {
-    // Maps grounding is only supported in Gemini 2.5 series models. 
-    // Thinking Config is available for Gemini 2.5 and 3 series.
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash", 
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
-        thinkingConfig: { thinkingBudget: 2000 },
-        temperature: 0.1,
+        toolConfig: context.userLocation ? {
+          retrievalConfig: {
+            latLng: { latitude: context.userLocation.latitude, longitude: context.userLocation.longitude }
+          }
+        } : undefined,
+        systemInstruction: `Você é um motor de otimização logística para Portugal. Siga rigorosamente as instruções de dormida (overnight). Utilize a base de partida especificada (${technicianBase}) para todos os cálculos.`,
+        temperature: 0
       },
     });
 
-    // Access the text property directly on the response object.
-    let jsonText = response.text || "";
+    const candidate = response.candidates?.[0];
+    if (!candidate) throw new Error("A IA não conseguiu processar a rota.");
     
-    if (!jsonText) throw new Error("A IA não retornou dados de rota.");
-
-    // Limpeza de markdown caso o modelo inclua
-    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const text = response.text || "{}";
+    const jsonStr = text.replace(/```json|```/g, "").trim();
     
     let data;
     try {
-        data = JSON.parse(jsonText);
+        data = JSON.parse(jsonStr);
     } catch (e) {
-        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) data = JSON.parse(jsonMatch[0]);
-        else throw new Error("Erro ao interpretar dados da rota.");
+        throw new Error("Erro na interpretação dos dados logísticos.");
     }
+
+    const sanitizedData = {
+        totalTime: data.totalTime || "Pendente",
+        totalDistance: data.totalDistance || "Pendente",
+        segments: Array.isArray(data.segments) ? data.segments : [],
+        travelUpdates: Array.isArray(data.travelUpdates) ? data.travelUpdates : []
+    };
     
     const groundingUrls: string[] = [];
-    // Extract Maps grounding URLs as required by the guidelines
-    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    const chunks = candidate.groundingMetadata?.groundingChunks;
     if (chunks) {
         chunks.forEach((chunk: any) => {
-            if (chunk.maps?.uri) {
-                groundingUrls.push(chunk.maps.uri);
-            }
+            if (chunk.maps?.uri) groundingUrls.push(chunk.maps.uri);
         });
     }
 
     return {
-        ...data,
+        ...sanitizedData,
         groundingUrls: Array.from(new Set(groundingUrls))
     };
 
   } catch (error: any) {
-    console.error("Erro Logística Gemini:", error);
-    throw new Error("Erro na comunicação com a IA. Verifique a ligação.");
+    console.error("Erro Rota:", error);
+    throw new Error(error.message || "Falha na comunicação com o serviço de mapas.");
   }
 };

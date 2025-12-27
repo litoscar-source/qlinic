@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Technician } from '../types';
-import { Truck, ShieldCheck, User as UserIcon, Lock, ArrowRight, UserCheck, AlertCircle } from 'lucide-react';
+import { Truck, ShieldCheck, User as UserIcon, Lock, ArrowRight, UserCheck, Cloud, Key, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
@@ -9,19 +9,23 @@ interface LoginScreenProps {
   onSetSyncKey: (key: string | null) => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, syncKey, onSetSyncKey }) => {
   const [role, setRole] = useState<'admin' | 'viewer' | 'technician'>('admin');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [selectedTechId, setSelectedTechId] = useState<string>('');
   const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [showCloudInput, setShowCloudInput] = useState(false);
+  const [tempSyncKey, setTempSyncKey] = useState(syncKey || '');
 
   useEffect(() => {
+    // Tenta carregar técnicos locais e atualizar se houver syncKey
     const loadData = () => {
         const saved = localStorage.getItem('local_technicians');
         if (saved) setTechnicians(JSON.parse(saved));
     };
     loadData();
+    // Escuta mudanças no localStorage (útil após sync em background)
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
   }, []);
@@ -59,6 +63,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     }
   };
 
+  const handleApplyCloudKey = () => {
+      onSetSyncKey(tempSyncKey);
+      setShowCloudInput(false);
+      // Feedback visual e recarregamento forçado
+      setTimeout(() => {
+          const saved = localStorage.getItem('local_technicians');
+          if (saved) setTechnicians(JSON.parse(saved));
+      }, 800);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 font-sans antialiased overflow-y-auto">
       <div className="mb-6 sm:mb-10 text-center animate-in fade-in slide-in-from-top-4 duration-700">
@@ -70,6 +84,37 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       </div>
       
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-slate-200">
+        
+        {/* Cloud Status / Sync Setup */}
+        <div className="mb-8">
+            {!syncKey && !showCloudInput ? (
+                <button onClick={() => setShowCloudInput(true)} className="w-full bg-slate-900 text-white py-4 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200">
+                    <Cloud size={16} /> Ligar à Nuvem do Gestor
+                </button>
+            ) : syncKey && !showCloudInput ? (
+                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-emerald-500 p-1.5 rounded-full text-white shadow-sm shadow-emerald-200"><CheckCircle2 size={14} /></div>
+                        <div>
+                            <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Cloud Ativa</p>
+                            <p className="text-[10px] font-bold text-slate-500 font-mono tracking-widest">{syncKey}</p>
+                        </div>
+                    </div>
+                    <button onClick={() => setShowCloudInput(true)} className="text-[9px] font-black text-red-600 uppercase tracking-widest hover:underline">Alterar</button>
+                </div>
+            ) : (
+                <div className="bg-emerald-50 p-5 rounded-3xl border border-emerald-200 space-y-4 animate-in zoom-in-95 duration-300">
+                    <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-2"><Key size={14}/> Sincronizar Base de Dados</p>
+                    <div className="flex gap-2">
+                        <input type="text" value={tempSyncKey} onChange={(e) => setTempSyncKey(e.target.value)} placeholder="Chave da Nuvem..." className="flex-1 px-4 py-3 rounded-xl border-2 border-emerald-200 font-bold text-xs uppercase outline-none focus:border-emerald-500 bg-white" />
+                        <button onClick={handleApplyCloudKey} className="bg-emerald-600 text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-200">Ligar</button>
+                    </div>
+                    <p className="text-[9px] text-emerald-600/70 font-bold leading-relaxed">Insira a chave fornecida pelo gestor para aceder à agenda partilhada.</p>
+                    <button onClick={() => setShowCloudInput(false)} className="text-[9px] font-black text-slate-400 uppercase w-full text-center hover:text-slate-600 transition-colors">Voltar</button>
+                </div>
+            )}
+        </div>
+
         <div className="relative mb-8 text-center">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
             <span className="relative bg-white px-4 text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Autenticação</span>
