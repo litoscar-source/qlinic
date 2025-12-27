@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Ticket, RouteAnalysis } from "../types";
 
@@ -18,6 +19,7 @@ export const analyzeRoute = async (
   // Inicialização seguindo as diretrizes Gemini 3
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+  // Fix: use camelCase property names as defined in the updated types.ts
   const sortedTickets = [...tickets].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
 
   const stops = sortedTickets.map((t, index) => 
@@ -64,18 +66,18 @@ export const analyzeRoute = async (
   `;
 
   try {
-    // Corrigido: Usando gemini-2.5-flash para suporte a googleMaps conforme as diretrizes (Maps grounding exige série 2.5)
+    // Maps grounding is only supported in Gemini 2.5 series models.
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash", 
+      model: "gemini-flash-lite-latest", 
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],
-        thinkingConfig: { thinkingBudget: 2000 }, // Otimização para raciocínio espacial
+        thinkingConfig: { thinkingBudget: 2000 }, // Available for Gemini 2.5 and 3 series
         temperature: 0.1,
       },
     });
 
-    // Acesso direto à propriedade .text conforme as novas diretrizes
+    // Access the text property directly on the response object.
     let jsonText = response.text || "";
     
     if (!jsonText) throw new Error("A IA não retornou dados de rota.");
@@ -96,7 +98,9 @@ export const analyzeRoute = async (
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
         chunks.forEach((chunk: any) => {
-            if (chunk.maps?.uri) groundingUrls.push(chunk.maps.uri);
+            if (chunk.maps?.uri) {
+                groundingUrls.push(chunk.maps.uri);
+            }
         });
     }
 
