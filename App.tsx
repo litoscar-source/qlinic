@@ -9,7 +9,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { ReportsModal } from './components/ReportsModal';
 import { LoginScreen } from './components/LoginScreen';
 import { RouteAnalyzer } from './components/RouteAnalyzer';
-import { Technician, Ticket, ServiceDefinition, User, DayStatus, Visor, Vehicle } from './types';
+import { Technician, Ticket, ServiceDefinition, User, DayStatus, Visor, Vehicle, CloudData } from './types';
 import { addWeeks, subWeeks, addMonths, subMonths, addYears, subYears, format, isSameDay, startOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Settings, FileBarChart, Calendar as CalendarIcon, List, LayoutGrid, Save, Navigation } from 'lucide-react';
@@ -121,6 +121,79 @@ function App() {
       const update = updates.find(u => u.ticketId === t.id);
       return update ? { ...t, travelTimeMinutes: update.travelTimeMinutes } : t;
     }));
+  };
+
+  // FUNÇÕES DE BACKUP - MELHORADAS
+  const handleExportBackup = () => {
+    try {
+      const data: CloudData = {
+        technicians,
+        services,
+        vehicles,
+        tickets,
+        dayStatuses,
+        visores,
+        lastSync: Date.now()
+      };
+      
+      const jsonString = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `marques-logistics-backup-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.json`;
+      
+      // Adiciona ao DOM temporariamente para garantir o clique em todos os browsers
+      document.body.appendChild(a);
+      a.click();
+      
+      // Limpeza
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      console.log("Backup exportado com sucesso.");
+    } catch (error) {
+      console.error("Erro ao exportar backup:", error);
+      alert("Não foi possível gerar o ficheiro de backup.");
+    }
+  };
+
+  const handleImportBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data: CloudData = JSON.parse(content);
+        
+        // Verificação mínima de integridade
+        if (!data.technicians || !data.tickets) {
+          throw new Error("O ficheiro não parece ser um backup válido do Marques Logistics.");
+        }
+
+        // PERSISTÊNCIA IMEDIATA PARA EVITAR RACE CONDITION COM O RELOAD
+        // Guardamos diretamente no localStorage antes de qualquer re-render ou reload
+        localStorage.setItem('local_technicians', JSON.stringify(data.technicians));
+        localStorage.setItem('local_services', JSON.stringify(data.services || []));
+        localStorage.setItem('local_vehicles', JSON.stringify(data.vehicles || []));
+        localStorage.setItem('local_visores', JSON.stringify(data.visores || []));
+        localStorage.setItem('local_tickets', JSON.stringify(data.tickets));
+        localStorage.setItem('local_day_statuses', JSON.stringify(data.dayStatuses || []));
+
+        alert("Dados restaurados com sucesso! A aplicação irá reiniciar.");
+        window.location.reload(); 
+      } catch (err) {
+        console.error("Erro ao importar backup:", err);
+        alert("Falha no restauro: " + (err instanceof Error ? err.message : "Ficheiro inválido"));
+      }
+    };
+    reader.readAsText(file);
+    // Limpa o valor do input para permitir importar o mesmo ficheiro novamente se necessário
+    event.target.value = '';
   };
 
   if (!user) return <LoginScreen onLogin={setUser} syncKey={null} onSetSyncKey={() => {}} />;
@@ -244,7 +317,9 @@ function App() {
         onAddService={(s) => setServices(p => [...p, s])} onRemoveService={(id) => setServices(p => p.filter(s => s.id !== id))}
         onAddVehicle={(v) => setVehicles(p => [...p, v])} onRemoveVehicle={(id) => setVehicles(p => p.filter(v => v.id !== id))}
         onAddVisor={(v) => setVisores(p => [...p, v])} onRemoveVisor={(id) => setVisores(p => p.filter(v => v.id !== id))}
-        onSetSyncKey={() => {}} onCreateSyncKey={() => {}} onExportBackup={() => {}} onImportBackup={() => {}}
+        onSetSyncKey={() => {}} onCreateSyncKey={() => {}} 
+        onExportBackup={handleExportBackup} 
+        onImportBackup={handleImportBackup}
       />
       
       <ReportsModal isOpen={isReportsModalOpen} onClose={() => setIsReportsModalOpen(false)} tickets={tickets} dayStatuses={dayStatuses} technicians={technicians} services={services} visores={visores} />

@@ -1,5 +1,5 @@
 
-import React, { ReactNode, ErrorInfo } from 'react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -12,10 +12,11 @@ interface ErrorBoundaryState {
   error: any;
 }
 
-// Using React.Component explicitly to ensure state and props are correctly inherited and typed.
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+// Fixed property existence errors by extending Component with proper generic types
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
+    // Initialize state inherited from Component
     this.state = { hasError: false, error: null };
   }
 
@@ -28,7 +29,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   render() {
-    // Correct usage of this.state inherited from React.Component
+    // Correctly accessing this.state inherited from Component
     if (this.state.hasError) {
       const errorMsg = this.state.error?.message || (typeof this.state.error === 'object' ? JSON.stringify(this.state.error) : String(this.state.error));
       const errorStack = this.state.error?.stack || "";
@@ -67,7 +68,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
-    // Correct usage of this.props inherited from React.Component
+    // Correctly accessing this.props inherited from Component
     return this.props.children;
   }
 }
