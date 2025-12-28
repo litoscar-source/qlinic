@@ -1,5 +1,5 @@
 
-import React, { Component, ReactNode, ErrorInfo } from 'react';
+import React, { ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -12,11 +12,8 @@ interface ErrorBoundaryState {
   error: any;
 }
 
-// Fix: Explicitly declare state and props properties. Although inherited from Component, some TypeScript configurations require these to be explicitly defined within the class to resolve property access errors.
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState;
-  public props: ErrorBoundaryProps;
-
+// Using React.Component explicitly to ensure state and props are correctly inherited and typed.
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -26,13 +23,12 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
-  // Fix: Utilize robust Error and ErrorInfo types from React for type-safe error handling within the catch lifecycle method.
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
   render() {
-    // Fix: Access state via this.state to determine if an error UI should be rendered.
+    // Correct usage of this.state inherited from React.Component
     if (this.state.hasError) {
       const errorMsg = this.state.error?.message || (typeof this.state.error === 'object' ? JSON.stringify(this.state.error) : String(this.state.error));
       const errorStack = this.state.error?.stack || "";
@@ -71,7 +67,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       );
     }
 
-    // Fix: Return children from this.props now that props is correctly recognized as a member of the component class.
+    // Correct usage of this.props inherited from React.Component
     return this.props.children;
   }
 }
