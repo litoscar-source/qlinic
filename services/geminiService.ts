@@ -23,7 +23,12 @@ export const analyzeRoute = async (
     throw new Error("São necessários serviços para calcular uma rota.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("A chave de API do Google Gemini não está configurada. Verifique as variáveis de ambiente (API_KEY).");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const sortedTickets = [...tickets].sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
 
   const stops = sortedTickets.map((t, index) => 
