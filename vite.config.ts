@@ -10,8 +10,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Isto permite que o código 'process.env.API_KEY' continue a funcionar
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Garante que as variáveis estão acessíveis via process.env para compatibilidade
+      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
+      'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY)
     }
   };
 });

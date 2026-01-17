@@ -113,7 +113,6 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                 return isSameDay(tDate, day) && t.technicianIds.includes(tech.id);
                             }).sort((a,b) => a.scheduledTime.localeCompare(b.scheduledTime));
 
-                            // Soma das horas de trabalho + horas de viagem (convertidas de minutos)
                             const totalWorkHours = dayTechTickets.reduce((acc, t) => acc + (t.duration || 0), 0);
                             const totalTravelHours = dayTechTickets.reduce((acc, t) => acc + ((t.travelTimeMinutes || 0) / 60), 0);
                             const totalDayHours = totalWorkHours + totalTravelHours;
@@ -161,41 +160,42 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                                     className={`rounded-xl shadow-sm p-2 cursor-grab active:cursor-grabbing transition-transform hover:scale-[1.02] ${getCardStyle(ticket, service)}`}>
                                                     
                                                     {ticket.travelTimeMinutes && (
-                                                      <div className={`flex items-center gap-1 text-[7px] font-black uppercase mb-1 opacity-60 ${textCls}`}>
-                                                        <Navigation size={8} /> +{ticket.travelTimeMinutes}min Viagem
+                                                      <div className={`flex items-center gap-1 text-[9px] font-black uppercase mb-1 ${textCls}`}>
+                                                        <Navigation size={9} /> +{ticket.travelTimeMinutes}min Viagem
                                                       </div>
                                                     )}
 
                                                     <div className="flex justify-between items-center mb-0.5">
-                                                        <span className={`text-[9px] font-black uppercase ${textCls} opacity-70`}>{ticket.scheduledTime} ({ticket.duration}h)</span>
+                                                        <span className={`text-[10px] font-black uppercase ${textCls} opacity-90`}>{ticket.scheduledTime} ({ticket.duration}h)</span>
                                                         {ticket.visorId && <PackageSearch size={10} className="text-red-600" />}
                                                     </div>
-                                                    <p className={`uppercase truncate font-black tracking-tight text-[10px] leading-none ${textCls}`}>{ticket.customerName}</p>
-                                                    {visor && <p className={`text-[7px] font-bold mt-1 uppercase truncate ${textCls} opacity-60`}>Visor: {visor.name}</p>}
+                                                    <p className={`uppercase truncate font-black tracking-tight text-[11px] leading-none ${textCls}`}>{ticket.customerName}</p>
+                                                    {visor && <p className={`text-[8px] font-bold mt-1 uppercase truncate ${textCls} opacity-80`}>Visor: {visor.name}</p>}
                                                 </div>
                                             );
                                         })}
                                     </div>
 
-                                    <div className={`absolute bottom-0 left-0 right-0 p-1.5 flex flex-col gap-0.5 text-[9px] font-black uppercase tracking-widest z-20 border-t border-slate-100 shadow-inner
+                                    {/* FOOTER DE SALDO - Melhoria de legibilidade */}
+                                    <div className={`absolute bottom-0 left-0 right-0 p-1.5 flex flex-col gap-0.5 text-[11px] font-black uppercase tracking-widest z-20 border-t border-slate-100 shadow-inner
                                         ${balance < 0 ? 'bg-red-600 text-white' : 'bg-slate-900 text-white'}`}>
                                         <div className="flex items-center justify-between">
-                                          <div className="flex items-center gap-1 opacity-70">
-                                              <Calculator size={10} />
-                                              <span>Tot: {totalDayHours.toFixed(1)}h</span>
+                                          <div className="flex items-center gap-1 font-black">
+                                              <Calculator size={11} className="text-white" />
+                                              <span>{totalDayHours.toFixed(1)}h</span>
                                           </div>
-                                          <span className={`px-2 py-0.5 rounded-lg ${balance < 0 ? 'bg-white text-red-600' : 'bg-emerald-500 text-white'}`}>
-                                              {balance >= 0 ? `Saldo +${balance.toFixed(1)}h` : `Extra ${Math.abs(balance).toFixed(1)}h`}
+                                          <span className={`px-2 py-0.5 rounded-lg text-[10px] border border-black/10 shadow-sm ${balance < 0 ? 'bg-white text-red-700' : 'bg-emerald-500 text-white'}`}>
+                                              {balance >= 0 ? `+${balance.toFixed(1)}h` : `${balance.toFixed(1)}h`}
                                           </span>
                                         </div>
-                                        <div className="flex items-center justify-between text-[7px] opacity-50">
-                                           <span>Trab: {totalWorkHours.toFixed(1)}h</span>
-                                           <span>Desl: {totalTravelHours.toFixed(1)}h</span>
+                                        <div className="flex items-center justify-between text-[9px] font-bold text-white/90">
+                                           <span>TRAB: {totalWorkHours.toFixed(1)}h</span>
+                                           <span>DESL: {totalTravelHours.toFixed(1)}h</span>
                                         </div>
                                     </div>
 
                                     {isOvernight && (
-                                        <div className="absolute bottom-10 left-0 right-0 bg-amber-500 text-white text-[8px] font-black py-0.5 flex items-center justify-center gap-1 uppercase tracking-widest shadow-lg z-10"><Moon size={8} fill="currentColor" /> DORMIDA</div>
+                                        <div className="absolute bottom-11 left-0 right-0 bg-amber-500 text-white text-[8px] font-black py-0.5 flex items-center justify-center gap-1 uppercase tracking-widest shadow-lg z-10"><Moon size={8} fill="currentColor" /> DORMIDA</div>
                                     )}
                                 </div>
                             );

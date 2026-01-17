@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Ticket, TicketStatus, Technician, ServiceDefinition, Vehicle } from '../types';
-import { Search, Filter, ArrowUpDown, Clock, MapPin, ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Truck, FileText, Monitor } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, Clock, MapPin, ChevronRight, CheckCircle2, AlertCircle, HelpCircle, Truck, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ListViewProps {
@@ -19,10 +19,6 @@ export const ListView: React.FC<ListViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<TicketStatus | 'all'>('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-  // Adicionamos referências locais a visores via localStorage para exibição se necessário, 
-  // mas aqui o ideal é que o App.tsx já as passasse ou que usemos os IDs para procurar nos dados.
-  // Como visores não estão nas props, vamos assumir que o nome está disponível ou mostrar apenas se necessário.
 
   const filteredTickets = useMemo(() => {
     return tickets
@@ -104,9 +100,6 @@ export const ListView: React.FC<ListViewProps> = ({
               const service = services.find(s => s.id === ticket.serviceId);
               const vehicle = vehicles.find(v => v.id === ticket.vehicleId);
               
-              // Se tiver visorId, sinalizar (o nome teria que vir de uma lista de visores)
-              const hasVisor = !!ticket.visorId;
-
               return (
                 <tr key={ticket.id} className="hover:bg-slate-50/80 transition-all group cursor-pointer" onClick={() => onEditTicket(ticket)}>
                   <td className="px-8 py-5">
@@ -141,14 +134,7 @@ export const ListView: React.FC<ListViewProps> = ({
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-black text-slate-800 uppercase tracking-tighter">{service?.name || 'OUTRO'}</span>
-                        {hasVisor && (
-                           <div className="bg-amber-100 text-amber-600 p-1 rounded-md" title="Requer Visor">
-                             <Monitor size={10} />
-                           </div>
-                        )}
-                      </div>
+                      <span className="text-[11px] font-black text-slate-800 uppercase tracking-tighter">{service?.name || 'OUTRO'}</span>
                       <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
                         <Truck size={10} className="text-slate-300" /> {vehicle?.name || 'PENDENTE'}
                       </span>

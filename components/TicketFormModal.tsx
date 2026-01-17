@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Technician, Ticket, TicketStatus, ServiceDefinition, Visor, Vehicle } from '../types';
-import { X, Save, MapPin, Clock, Users, Wrench, Trash2, AlertCircle, Monitor, Calendar, FileText, Info, Truck, PackageSearch } from 'lucide-react';
+import { X, Save, MapPin, Clock, Users, Wrench, Trash2, AlertCircle, Monitor, Calendar, FileText, Info, Truck } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface TicketFormModalProps {
@@ -113,13 +113,6 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isReadOnly) return;
-    
-    // Validação extra para reconstrução
-    if (isReconstruction && !formData.visorId) {
-        alert("Por favor, selecione o Visor para este serviço de Reconstrução.");
-        return;
-    }
-
     onSave({
         ...formData,
         date: new Date(formData.date + 'T00:00:00'),
@@ -214,27 +207,6 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                             </div>
                         </div>
                     </div>
-                    
-                    {/* CAMPO DINÂMICO PARA VISOR QUANDO É RECONSTRUÇÃO */}
-                    {isReconstruction && (
-                      <div className="bg-orange-50 p-5 rounded-2xl border-2 border-orange-200 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="flex items-center gap-2 mb-1">
-                          <PackageSearch size={16} className="text-orange-600" />
-                          <label className="block text-[10px] font-black text-orange-700 uppercase tracking-widest">Equipamento (Visor) Obrigatório</label>
-                        </div>
-                        <select 
-                          required 
-                          disabled={isReadOnly} 
-                          value={formData.visorId} 
-                          onChange={(e) => setFormData({...formData, visorId: e.target.value})} 
-                          className="w-full px-4 py-3 border-2 border-orange-200 rounded-xl font-bold bg-white text-sm outline-none text-slate-900 focus:border-orange-500 shadow-sm"
-                        >
-                          <option value="">-- SELECIONE MODELO DO VISOR --</option>
-                          {visores.map(v => <option key={v.id} value={v.id}>{v.name.toUpperCase()}</option>)}
-                        </select>
-                        <p className="text-[9px] text-orange-600 font-bold uppercase tracking-tighter italic">Este campo é necessário para o picking logístico.</p>
-                      </div>
-                    )}
                 </div>
             </div>
 

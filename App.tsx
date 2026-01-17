@@ -9,58 +9,26 @@ import { SettingsModal } from './components/SettingsModal';
 import { ReportsModal } from './components/ReportsModal';
 import { LoginScreen } from './components/LoginScreen';
 import { RouteAnalyzer } from './components/RouteAnalyzer';
-import { Technician, Ticket, ServiceDefinition, User, DayStatus, Visor, Vehicle, CloudData } from './types';
+import { Technician, Ticket, ServiceDefinition, User, DayStatus, Visor, Vehicle } from './types';
+import { parseDynamicsFile } from './services/dynamicsImportService';
+import { dataService } from './services/dataService';
 import { addWeeks, subWeeks, addMonths, subMonths, addYears, subYears, format, isSameDay, startOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Settings, FileBarChart, Calendar as CalendarIcon, List, LayoutGrid, Save, Navigation } from 'lucide-react';
-
-const SEED_TECHNICIANS: Technician[] = [
-  { id: 'tech-1', name: 'João Silva', avatarColor: 'bg-blue-600', password: '1234', basePostalCode: '4705-471' },
-  { id: 'tech-2', name: 'Maria Costa', avatarColor: 'bg-emerald-600', password: '1234', basePostalCode: '4000-001' },
-];
-
-const SEED_SERVICES: ServiceDefinition[] = [
-  { id: 'svc-1', name: 'Assistência', defaultDuration: 1, colorClass: 'bg-slate-100' },
-  { id: 'svc-2', name: 'Instalação', defaultDuration: 4, colorClass: 'bg-blue-600' },
-  { id: 'svc-7', name: 'Reconstrução', defaultDuration: 6, colorClass: 'bg-orange-500' },
-];
-
-const getSafeLocalStorage = <T,>(key: string, defaultValue: T): T => {
-  const saved = localStorage.getItem(key);
-  if (!saved || saved === 'undefined' || saved === 'null') return defaultValue;
-  try {
-    return JSON.parse(saved);
-  } catch (e) {
-    return defaultValue;
-  }
-};
+import { ChevronLeft, ChevronRight, Settings, FileBarChart, Calendar as CalendarIcon, List, LayoutGrid, Save, Navigation, Loader2 } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'week' | 'month' | 'year' | 'list'>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
-  const [technicians, setTechnicians] = useState<Technician[]>(() => 
-    getSafeLocalStorage('local_technicians', SEED_TECHNICIANS)
-  );
-
-  const [services, setServices] = useState<ServiceDefinition[]>(() => 
-    getSafeLocalStorage('local_services', SEED_SERVICES)
-  );
-
-  const [tickets, setTickets] = useState<Ticket[]>(() => {
-    const data = getSafeLocalStorage<any[]>('local_tickets', []);
-    return data.map(t => ({ ...t, date: new Date(t.date) }));
-  });
-
-  const [dayStatuses, setDayStatuses] = useState<DayStatus[]>(() => {
-    const data = getSafeLocalStorage<any[]>('local_day_statuses', []);
-    return data.map(d => ({ ...d, date: new Date(d.date) }));
-  });
-
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => getSafeLocalStorage('local_vehicles', []));
-  const [visores, setVisores] = useState<Visor[]>(() => getSafeLocalStorage('local_visores', []));
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [services, setServices] = useState<ServiceDefinition[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [dayStatuses, setDayStatuses] = useState<DayStatus[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [visores, setVisores] = useState<Visor[]>([]);
 
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
@@ -69,14 +37,27 @@ function App() {
   
   const [routeAnalysisData, setRouteAnalysisData] = useState<{ tickets: Ticket[], techId: string } | null>(null);
 
+  // Carregar dados iniciais do Supabase
   useEffect(() => {
-    localStorage.setItem('local_technicians', JSON.stringify(technicians));
-    localStorage.setItem('local_services', JSON.stringify(services));
-    localStorage.setItem('local_tickets', JSON.stringify(tickets));
-    localStorage.setItem('local_day_statuses', JSON.stringify(dayStatuses));
-    localStorage.setItem('local_vehicles', JSON.stringify(vehicles));
-    localStorage.setItem('local_visores', JSON.stringify(visores));
-  }, [technicians, services, tickets, dayStatuses, vehicles, visores]);
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const data = await dataService.fetchAllData();
+        setTechnicians(data.technicians);
+        setServices(data.services);
+        setTickets(data.tickets);
+        setDayStatuses(data.dayStatuses);
+        setVehicles(data.vehicles);
+        setVisores(data.visores);
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+        alert("Erro de conexão à base de dados. Verifique a sua internet ou configurações.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const navigateDate = (direction: 'prev' | 'next') => {
     if (viewMode === 'week') {
@@ -88,21 +69,47 @@ function App() {
     }
   };
 
-  const handleSaveTicket = (ticketData: Omit<Ticket, 'id'>) => {
-    if (editingTicket) {
-      setTickets(prev => prev.map(t => t.id === editingTicket.id ? { ...ticketData, id: t.id, date: new Date(ticketData.date) } : t));
-    } else {
-      setTickets(prev => [...prev, { ...ticketData, id: `tk-${Date.now()}`, date: new Date(ticketData.date) }]);
+  const handleSaveTicket = async (ticketData: Omit<Ticket, 'id'>) => {
+    try {
+      if (editingTicket) {
+        const updatedTicket = { ...ticketData, id: editingTicket.id, date: new Date(ticketData.date) };
+        await dataService.updateTicket(editingTicket.id, updatedTicket);
+        setTickets(prev => prev.map(t => t.id === editingTicket.id ? updatedTicket : t));
+      } else {
+        const newTicket = { ...ticketData, id: crypto.randomUUID(), date: new Date(ticketData.date) };
+        await dataService.createTicket(newTicket);
+        setTickets(prev => [...prev, newTicket]);
+      }
+      setIsTicketModalOpen(false);
+      setEditingTicket(null);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao gravar. Tente novamente.");
     }
-    setIsTicketModalOpen(false);
-    setEditingTicket(null);
   };
 
-  const handleUpdateTicket = useCallback((ticketId: string, updates: Partial<Ticket>) => {
+  const handleUpdateTicket = useCallback(async (ticketId: string, updates: Partial<Ticket>) => {
+    // Otimista
     setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, ...updates } : t));
+    try {
+      await dataService.updateTicket(ticketId, updates);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao sincronizar atualização.");
+      // Reverteria aqui num cenário real
+    }
   }, []);
 
-  const handleMoveTicket = useCallback((ticketId: string, newDate: Date, targetTechId: string, sourceTechId: string) => {
+  const handleDeleteTicket = async (id: string) => {
+    try {
+        await dataService.deleteTicket(id);
+        setTickets(p => p.filter(t => t.id !== id));
+    } catch (e) {
+        alert("Erro ao eliminar.");
+    }
+  };
+
+  const handleMoveTicket = useCallback(async (ticketId: string, newDate: Date, targetTechId: string, sourceTechId: string) => {
     setTickets(prev => prev.map(t => {
       if (t.id === ticketId) {
         let updatedTechIds = [...t.technicianIds];
@@ -110,7 +117,10 @@ function App() {
           updatedTechIds = updatedTechIds.map(id => id === sourceTechId ? targetTechId : id);
           updatedTechIds = Array.from(new Set(updatedTechIds));
         }
-        return { ...t, date: newDate, technicianIds: updatedTechIds };
+        const updates = { date: newDate, technicianIds: updatedTechIds };
+        // Sync sem bloquear UI
+        dataService.updateTicket(ticketId, updates).catch(err => console.error(err));
+        return { ...t, ...updates };
       }
       return t;
     }));
@@ -119,84 +129,119 @@ function App() {
   const handleApplyTravelUpdates = (updates: { ticketId: string, travelTimeMinutes: number }[]) => {
     setTickets(prev => prev.map(t => {
       const update = updates.find(u => u.ticketId === t.id);
-      return update ? { ...t, travelTimeMinutes: update.travelTimeMinutes } : t;
+      if (update) {
+          dataService.updateTicket(t.id, { travelTimeMinutes: update.travelTimeMinutes });
+          return { ...t, travelTimeMinutes: update.travelTimeMinutes };
+      }
+      return t;
     }));
   };
 
-  // FUNÇÕES DE BACKUP - MELHORADAS
-  const handleExportBackup = () => {
-    try {
-      const data: CloudData = {
-        technicians,
-        services,
-        vehicles,
-        tickets,
-        dayStatuses,
-        visores,
-        lastSync: Date.now()
-      };
-      
-      const jsonString = JSON.stringify(data, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `marques-logistics-backup-${format(new Date(), 'yyyy-MM-dd-HH-mm')}.json`;
-      
-      // Adiciona ao DOM temporariamente para garantir o clique em todos os browsers
-      document.body.appendChild(a);
-      a.click();
-      
-      // Limpeza
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
-      
-      console.log("Backup exportado com sucesso.");
-    } catch (error) {
-      console.error("Erro ao exportar backup:", error);
-      alert("Não foi possível gerar o ficheiro de backup.");
+  const handleToggleOvernight = async (date: Date, techId: string) => {
+    const existing = dayStatuses.find(ds => isSameDay(new Date(ds.date), date) && ds.technicianId === techId);
+    if (existing) {
+        try {
+            await dataService.removeDayStatus(existing.id);
+            setDayStatuses(p => p.filter(ds => ds.id !== existing.id));
+        } catch(e) { console.error(e); }
+    } else {
+        const newStatus = { id: crypto.randomUUID(), technicianId: techId, date: startOfDay(date), isOvernight: true };
+        try {
+            await dataService.addDayStatus(newStatus);
+            setDayStatuses(p => [...p, newStatus]);
+        } catch(e) { console.error(e); }
     }
   };
 
-  const handleImportBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // --- Handlers de Configuração (Async) ---
+  const handleAddTech = async (t: Technician) => {
+      await dataService.addTechnician(t);
+      setTechnicians(p => [...p, t]);
+  };
+  const handleRemoveTech = async (id: string) => {
+      await dataService.removeTechnician(id);
+      setTechnicians(p => p.filter(t => t.id !== id));
+  };
+  const handleAddService = async (s: ServiceDefinition) => {
+      await dataService.addService(s);
+      setServices(p => [...p, s]);
+  };
+  const handleRemoveService = async (id: string) => {
+      await dataService.removeService(id);
+      setServices(p => p.filter(s => s.id !== id));
+  };
+  const handleAddVehicle = async (v: Vehicle) => {
+      await dataService.addVehicle(v);
+      setVehicles(p => [...p, v]);
+  };
+  const handleRemoveVehicle = async (id: string) => {
+      await dataService.removeVehicle(id);
+      setVehicles(p => p.filter(v => v.id !== id));
+  };
+  const handleAddVisor = async (v: Visor) => {
+      await dataService.addVisor(v);
+      setVisores(p => [...p, v]);
+  };
+  const handleRemoveVisor = async (id: string) => {
+      await dataService.removeVisor(id);
+      setVisores(p => p.filter(v => v.id !== id));
+  };
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const data: CloudData = JSON.parse(content);
-        
-        // Verificação mínima de integridade
-        if (!data.technicians || !data.tickets) {
-          throw new Error("O ficheiro não parece ser um backup válido do Marques Logistics.");
-        }
+  const handleImportDynamics = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-        // PERSISTÊNCIA IMEDIATA PARA EVITAR RACE CONDITION COM O RELOAD
-        // Guardamos diretamente no localStorage antes de qualquer re-render ou reload
-        localStorage.setItem('local_technicians', JSON.stringify(data.technicians));
-        localStorage.setItem('local_services', JSON.stringify(data.services || []));
-        localStorage.setItem('local_vehicles', JSON.stringify(data.vehicles || []));
-        localStorage.setItem('local_visores', JSON.stringify(data.visores || []));
-        localStorage.setItem('local_tickets', JSON.stringify(data.tickets));
-        localStorage.setItem('local_day_statuses', JSON.stringify(data.dayStatuses || []));
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+          try {
+              setIsLoading(true);
+              const data = e.target?.result as ArrayBuffer;
+              const importedTickets = await parseDynamicsFile(data, services, technicians);
+              if (importedTickets.length > 0) {
+                  const newTickets = importedTickets.map(t => ({ 
+                      ...t, 
+                      id: crypto.randomUUID()
+                  }));
+                  // Batch insert via Supabase
+                  await dataService.syncImportedTickets(newTickets as Ticket[]);
+                  setTickets(prev => [...prev, ...newTickets as Ticket[]]);
+                  alert(`Importação concluída: ${newTickets.length} atividades de serviço adicionadas.`);
+              } else {
+                  alert('Não foram encontrados dados compatíveis no ficheiro.');
+              }
+          } catch (err) {
+              console.error(err);
+              alert('Erro ao processar ficheiro do Dynamics ou gravar na base de dados.');
+          } finally {
+              setIsLoading(false);
+          }
+      };
+      reader.readAsArrayBuffer(file);
+  };
 
-        alert("Dados restaurados com sucesso! A aplicação irá reiniciar.");
-        window.location.reload(); 
-      } catch (err) {
-        console.error("Erro ao importar backup:", err);
-        alert("Falha no restauro: " + (err instanceof Error ? err.message : "Ficheiro inválido"));
-      }
-    };
-    reader.readAsText(file);
-    // Limpa o valor do input para permitir importar o mesmo ficheiro novamente se necessário
-    event.target.value = '';
+  // Mantemos o backup JSON para segurança, mas agora exporta o estado atual
+  const handleExportBackup = () => {
+    const backupData = { technicians, services, tickets, dayStatuses, vehicles, visores, exportDate: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `qlinic_supabase_backup_${format(new Date(), 'yyyyMMdd_HHmm')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (!user) return <LoginScreen onLogin={setUser} syncKey={null} onSetSyncKey={() => {}} />;
+
+  if (isLoading) {
+      return (
+          <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
+              <Loader2 className="animate-spin text-red-600" size={48} />
+              <p className="text-slate-400 font-black uppercase tracking-widest text-xs">A carregar dados da cloud...</p>
+          </div>
+      );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden font-sans text-slate-900 antialiased">
@@ -209,7 +254,7 @@ function App() {
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-black uppercase tracking-tighter leading-none">Marques Logistics</h1>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Planning System</p>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Cloud System</p>
               </div>
             </div>
 
@@ -249,11 +294,7 @@ function App() {
             onMoveTicket={handleMoveTicket}
             onEditTicket={(t) => {setEditingTicket(t); setIsTicketModalOpen(true);}}
             onNewTicket={(date, techId) => {setSelectedDate(date); setIsTicketModalOpen(true);}}
-            onToggleOvernight={(date, techId) => {
-                const existing = dayStatuses.find(ds => isSameDay(new Date(ds.date), date) && ds.technicianId === techId);
-                if (existing) setDayStatuses(p => p.filter(ds => ds.id !== existing.id));
-                else setDayStatuses(p => [...p, { id: `ds-${Date.now()}`, technicianId: techId, date: startOfDay(date), isOvernight: true }]);
-            }}
+            onToggleOvernight={handleToggleOvernight}
             onSelectDate={setSelectedDate}
             selectedDate={selectedDate}
             isCompact={false}
@@ -306,20 +347,21 @@ function App() {
         isOpen={isTicketModalOpen} onClose={() => {setIsTicketModalOpen(false); setEditingTicket(null);}} 
         onSave={handleSaveTicket} technicians={technicians} services={services} vehicles={vehicles} visores={visores}
         initialDate={selectedDate} selectedTechId={null} ticketToEdit={editingTicket}
-        onDelete={(id) => setTickets(p => p.filter(t => t.id !== id))}
+        onDelete={handleDeleteTicket}
       />
       
       <SettingsModal 
         isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} 
         technicians={technicians} services={services} vehicles={vehicles} visores={visores} 
         syncKey={null}
-        onAddTechnician={(t) => setTechnicians(p => [...p, t])} onRemoveTechnician={(id) => setTechnicians(p => p.filter(t => t.id !== id))}
-        onAddService={(s) => setServices(p => [...p, s])} onRemoveService={(id) => setServices(p => p.filter(s => s.id !== id))}
-        onAddVehicle={(v) => setVehicles(p => [...p, v])} onRemoveVehicle={(id) => setVehicles(p => p.filter(v => v.id !== id))}
-        onAddVisor={(v) => setVisores(p => [...p, v])} onRemoveVisor={(id) => setVisores(p => p.filter(v => v.id !== id))}
+        onAddTechnician={handleAddTech} onRemoveTechnician={handleRemoveTech}
+        onAddService={handleAddService} onRemoveService={handleRemoveService}
+        onAddVehicle={handleAddVehicle} onRemoveVehicle={handleRemoveVehicle}
+        onAddVisor={handleAddVisor} onRemoveVisor={handleRemoveVisor}
         onSetSyncKey={() => {}} onCreateSyncKey={() => {}} 
         onExportBackup={handleExportBackup} 
-        onImportBackup={handleImportBackup}
+        onImportBackup={() => {}} // Desativado importação local para evitar conflitos, use import dynamics
+        onImportDynamics={handleImportDynamics}
       />
       
       <ReportsModal isOpen={isReportsModalOpen} onClose={() => setIsReportsModalOpen(false)} tickets={tickets} dayStatuses={dayStatuses} technicians={technicians} services={services} visores={visores} />

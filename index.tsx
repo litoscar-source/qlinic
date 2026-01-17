@@ -12,11 +12,13 @@ interface ErrorBoundaryState {
   error: any;
 }
 
-// Fixed property existence errors by extending Component with proper generic types
+// Fix: Explicitly declare state and props properties. Although inherited from Component, some TypeScript configurations require these to be explicitly defined within the class to resolve property access errors.
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState;
+  public props: ErrorBoundaryProps;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    // Initialize state inherited from Component
     this.state = { hasError: false, error: null };
   }
 
@@ -24,12 +26,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
+  // Fix: Utilize robust Error and ErrorInfo types from React for type-safe error handling within the catch lifecycle method.
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
   render() {
-    // Correctly accessing this.state inherited from Component
+    // Fix: Access state via this.state to determine if an error UI should be rendered.
     if (this.state.hasError) {
       const errorMsg = this.state.error?.message || (typeof this.state.error === 'object' ? JSON.stringify(this.state.error) : String(this.state.error));
       const errorStack = this.state.error?.stack || "";
@@ -68,7 +71,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       );
     }
 
-    // Correctly accessing this.props inherited from Component
+    // Fix: Return children from this.props now that props is correctly recognized as a member of the component class.
     return this.props.children;
   }
 }

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Technician, ServiceDefinition, Visor, Vehicle } from '../types';
-import { X, Trash2, Plus, User, Briefcase, Lock, Key, Cloud, Share2, QrCode, Upload, Download, FileJson, Palette, Truck, Monitor, MapPin } from 'lucide-react';
+import { X, Trash2, Plus, User, Briefcase, Lock, Key, Cloud, Share2, QrCode, Upload, Download, FileJson, Palette, Truck, Monitor, MapPin, FileSpreadsheet } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -24,6 +24,7 @@ interface SettingsModalProps {
   onCreateSyncKey: () => void;
   onExportBackup: () => void;
   onImportBackup: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onImportDynamics?: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -31,7 +32,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   technicians = [], services = [], vehicles = [], visores = [], 
   syncKey,
   onAddTechnician, onRemoveTechnician, onAddService, onRemoveService, onAddVehicle, onRemoveVehicle,
-  onAddVisor, onRemoveVisor, onSetSyncKey, onCreateSyncKey, onExportBackup, onImportBackup
+  onAddVisor, onRemoveVisor, onSetSyncKey, onCreateSyncKey, onExportBackup, onImportBackup, onImportDynamics
 }) => {
   const [activeTab, setActiveTab] = useState<'tech' | 'service' | 'vehicle' | 'visor' | 'cloud' | 'data'>('tech');
   const [newTechName, setNewTechName] = useState('');
@@ -42,7 +43,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newServiceColor, setNewServiceColor] = useState('bg-slate-100');
   const [newVehicleName, setNewVehicleName] = useState('');
   const [newVisorName, setNewVisorName] = useState('');
-  const [inputSyncKey, setInputSyncKey] = useState('');
 
   if (!isOpen) return null;
 
@@ -126,7 +126,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button onClick={() => setActiveTab('vehicle')} className={getTabClass('vehicle')}>Frota</button>
           <button onClick={() => setActiveTab('visor')} className={getTabClass('visor')}>Visores</button>
           <button onClick={() => setActiveTab('cloud')} className={getTabClass('cloud')}>Cloud</button>
-          <button onClick={() => setActiveTab('data')} className={getTabClass('data')}>Backup</button>
+          <button onClick={() => setActiveTab('data')} className={getTabClass('data')}>Backup & CRM</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-10 bg-white custom-scrollbar">
@@ -259,17 +259,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                 )}
                 {activeTab === 'data' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="bg-blue-50 p-10 rounded-[2.5rem] border border-blue-100 flex flex-col items-center text-center">
-                            <Download className="text-blue-600 mb-6" size={40} />
-                            <button onClick={onExportBackup} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px]">Exportar Backup</button>
+                    <div className="space-y-10">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="bg-blue-50 p-8 rounded-[2rem] border border-blue-100 flex flex-col items-center text-center">
+                                <Download className="text-blue-600 mb-4" size={32} />
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-900 mb-4">Exportar Base de Dados</h4>
+                                <button onClick={onExportBackup} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-100">Descarregar JSON</button>
+                            </div>
+                            <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 flex flex-col items-center text-center">
+                                <Upload className="text-white mb-4" size={32} />
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Restaurar Ficheiro Local</h4>
+                                <label className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] cursor-pointer text-center shadow-xl">
+                                    Selecionar JSON
+                                    <input type="file" accept=".json" onChange={onImportBackup} className="hidden" />
+                                </label>
+                            </div>
                         </div>
-                        <div className="bg-slate-900 p-10 rounded-[2.5rem] border border-slate-800 flex flex-col items-center text-center">
-                            <Upload className="text-white mb-6" size={40} />
-                            <label className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] cursor-pointer text-center">
-                                Restaurar Backup
-                                <input type="file" accept=".json" onChange={onImportBackup} className="hidden" />
-                            </label>
+
+                        <div className="bg-emerald-50 p-8 rounded-[2.5rem] border border-emerald-100 border-dashed">
+                             <div className="flex items-center gap-4 mb-6">
+                                <div className="bg-emerald-600 p-3 rounded-2xl text-white shadow-lg"><FileSpreadsheet size={24} /></div>
+                                <div>
+                                    <h3 className="text-sm font-black text-emerald-900 uppercase tracking-tight">Importação Microsoft Dynamics 365</h3>
+                                    <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Excel ou CSV</p>
+                                </div>
+                             </div>
+                             <p className="text-xs text-slate-600 mb-6 leading-relaxed">
+                                Importe as suas atividades de serviço diretamente do Dynamics (XLSX, XLS ou CSV). O sistema irá mapear automaticamente os campos <b>Subject, Scheduled Start</b> e <b>Regarding</b>.
+                             </p>
+                             <label className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest cursor-pointer text-center shadow-2xl shadow-emerald-200 flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all">
+                                <Upload size={18} /> Importar Dynamics (.xlsx, .csv)
+                                <input type="file" accept=".csv, .xlsx, .xls" onChange={onImportDynamics} className="hidden" />
+                             </label>
                         </div>
                     </div>
                 )}
