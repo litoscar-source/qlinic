@@ -9,12 +9,13 @@ import { SettingsModal } from './components/SettingsModal';
 import { ReportsModal } from './components/ReportsModal';
 import { LoginScreen } from './components/LoginScreen';
 import { RouteAnalyzer } from './components/RouteAnalyzer';
+import { MobileTechnicianView } from './components/MobileTechnicianView';
 import { Technician, Ticket, ServiceDefinition, User, DayStatus, Visor, Vehicle } from './types';
 import { parseDynamicsFile } from './services/dynamicsImportService';
 import { dataService } from './services/dataService';
 import { addWeeks, subWeeks, addMonths, subMonths, addYears, subYears, format, isSameDay, startOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Settings, FileBarChart, Calendar as CalendarIcon, List, LayoutGrid, Save, Navigation, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, FileBarChart, Calendar as CalendarIcon, List, LayoutGrid, Save, Navigation, Loader2, LogOut } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -40,6 +41,12 @@ function App() {
   // Carregar dados iniciais do Supabase
   useEffect(() => {
     const loadData = async () => {
+      // Se não houver utilizador logado, não carrega os dados principais (o LoginScreen carrega o que precisa)
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         const data = await dataService.fetchAllData();
@@ -57,7 +64,7 @@ function App() {
       }
     };
     loadData();
-  }, []);
+  }, [user]); // Adicionado 'user' como dependência para recarregar ao fazer login
 
   const navigateDate = (direction: 'prev' | 'next') => {
     if (viewMode === 'week') {
@@ -219,7 +226,6 @@ function App() {
       reader.readAsArrayBuffer(file);
   };
 
-  // Mantemos o backup JSON para segurança, mas agora exporta o estado atual
   const handleExportBackup = () => {
     const backupData = { technicians, services, tickets, dayStatuses, vehicles, visores, exportDate: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -230,6 +236,13 @@ function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    if(window.confirm("Deseja mesmo sair?")) {
+      setUser(null);
+    }
   };
 
   if (!user) return <LoginScreen onLogin={setUser} syncKey={null} onSetSyncKey={() => {}} />;
@@ -243,6 +256,32 @@ function App() {
       );
   }
 
+  // --- MODO TÉCNICO MÓVEL ---
+  if (user.role === 'technician' && user.technicianId) {
+      const activeTech = technicians.find(t => t.id === user.technicianId);
+      if (activeTech) {
+          return (
+              <MobileTechnicianView 
+                  tickets={tickets} 
+                  technicianId={user.technicianId} 
+                  technician={activeTech}
+                  services={services}
+                  vehicles={vehicles}
+                  onUpdateStatus={(id, status) => handleUpdateTicket(id, { status })}
+                  onViewDetails={() => {}}
+                  onUpdateProfile={(updates) => {
+                      // Simular update profile local e cloud
+                      const updatedTechs = technicians.map(t => t.id === user.technicianId ? { ...t, ...updates } : t);
+                      setTechnicians(updatedTechs);
+                      // Nota: adicionar endpoint na dataService para updateTechnician se necessário
+                  }}
+                  onLogout={handleLogout}
+              />
+          );
+      }
+  }
+
+  // --- MODO GESTÃO / ADMIN ---
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden font-sans text-slate-900 antialiased">
       <header className="bg-white border-b border-slate-200 shadow-sm shrink-0 z-50">
@@ -280,6 +319,7 @@ function App() {
              <div className="flex items-center gap-2">
                 <button onClick={() => setIsReportsModalOpen(true)} className="p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all" title="Relatórios"><FileBarChart size={20} /></button>
                 <button onClick={() => setIsSettingsModalOpen(true)} className="p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all" title="Configurações"><Settings size={20} /></button>
+                <button onClick={handleLogout} className="p-2.5 text-white bg-slate-900 hover:bg-black rounded-xl transition-all shadow-md shadow-slate-200" title="Terminar Sessão"><LogOut size={18} /></button>
                 <button onClick={() => {setEditingTicket(null); setIsTicketModalOpen(true);}} className="bg-red-600 text-white px-6 py-2.5 rounded-xl shadow-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all ml-2">Novo Agendamento</button>
              </div>
           </div>

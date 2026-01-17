@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { Ticket, TicketStatus, Technician, ServiceDefinition, Vehicle } from '../types';
-import { Clock, MapPin, Navigation, CheckCircle2, AlertCircle, FileText, ChevronRight, Calendar, User, Search, CheckCircle, X, ChevronDown, HelpCircle, Phone, Info, MoreVertical, LogOut, Key, Shield, Lock, Truck } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { Clock, MapPin, Navigation, CheckCircle2, AlertCircle, FileText, ChevronRight, Calendar, User, Search, CheckCircle, X, ChevronDown, HelpCircle, Phone, Info, MoreVertical, LogOut, Key, Shield, Lock, Truck, ChevronLeft } from 'lucide-react';
+import { format, isSameDay, addDays, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
 interface MobileTechnicianViewProps {
@@ -67,6 +67,15 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
       alert("PIN atualizado com sucesso!");
   };
 
+  // Funções de Navegação
+  const handlePrevDay = () => setSelectedDate(prev => addDays(prev, -1));
+  const handleNextDay = () => setSelectedDate(prev => addDays(prev, 1));
+  const handlePrevMonth = () => setSelectedDate(prev => subMonths(prev, 1));
+  const handleNextMonth = () => setSelectedDate(prev => addMonths(prev, 1));
+  
+  // Lista de dias para o "scroll" (centrado na data selecionada)
+  const dayStrip = [-2, -1, 0, 1, 2].map(offset => addDays(selectedDate, offset));
+
   return (
     <div className="flex flex-col h-full bg-slate-50 font-sans overflow-hidden">
       
@@ -74,19 +83,37 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
         <>
           <div className="bg-white p-4 border-b border-slate-200 sticky top-0 z-20 shadow-sm shrink-0">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Minha Agenda</h2>
-                <div className="bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase border border-red-100 shadow-sm">
-                    {format(selectedDate, 'd MMMM', { locale: pt })}
+                <div className="flex flex-col">
+                     <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Minha Agenda</h2>
+                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Olá, {technician.name.split(' ')[0]}</p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                     <button onClick={handlePrevMonth} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 text-slate-500"><ChevronLeft size={16}/></button>
+                     <div className="relative group">
+                        <div className="bg-red-50 text-red-600 px-4 py-2 rounded-2xl text-[10px] font-black uppercase border border-red-100 shadow-sm flex items-center gap-2 cursor-pointer">
+                            <Calendar size={14} />
+                            {format(selectedDate, 'MMM yyyy', { locale: pt })}
+                        </div>
+                        {/* Date Picker escondido sobre o botão para funcionalidade nativa */}
+                        <input 
+                            type="date" 
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" 
+                            onChange={(e) => {
+                                if(e.target.value) setSelectedDate(new Date(e.target.value));
+                            }}
+                        />
+                     </div>
+                     <button onClick={handleNextMonth} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 text-slate-500"><ChevronRight size={16}/></button>
                 </div>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                {[-2, -1, 0, 1, 2, 3, 4, 5, 6].map(offset => {
-                    const date = new Date();
-                    date.setDate(date.getDate() + offset);
+            
+            <div className="flex justify-between items-center gap-1">
+                {dayStrip.map(date => {
                     const isSelected = isSameDay(date, selectedDate);
                     return (
-                        <button key={offset} onClick={() => setSelectedDate(date)}
-                            className={`flex flex-col items-center min-w-[56px] p-3 rounded-2xl transition-all border-2 active:scale-90 ${isSelected ? 'bg-red-600 border-red-700 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>
+                        <button key={date.toISOString()} onClick={() => setSelectedDate(date)}
+                            className={`flex flex-col items-center flex-1 py-3 rounded-2xl transition-all border-2 active:scale-95 ${isSelected ? 'bg-red-600 border-red-700 text-white shadow-lg scale-105 z-10' : 'bg-white border-slate-100 text-slate-400'}`}>
                             <span className="text-[9px] font-bold uppercase opacity-70">{format(date, 'EEE', { locale: pt })}</span>
                             <span className="text-lg font-black">{format(date, 'd')}</span>
                         </button>
@@ -101,7 +128,7 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
                     <div className="bg-white p-6 rounded-full shadow-inner mb-6">
                         <Calendar size={64} className="opacity-20" />
                     </div>
-                    <p className="font-black uppercase tracking-widest text-xs text-slate-400">Sem serviços agendados</p>
+                    <p className="font-black uppercase tracking-widest text-xs text-slate-400">Sem serviços para {format(selectedDate, 'dd/MM')}</p>
                     <p className="text-[10px] mt-1 font-bold text-slate-300 italic">Desfrute da folga!</p>
                 </div>
             ) : (
@@ -305,7 +332,7 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
         </div>
       )}
 
-      {/* RE-STYLED MOBILE FOOTER - Fixed and Pure White for Visibility */}
+      {/* RE-STYLED MOBILE FOOTER */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-8 py-4 flex justify-around items-center z-[50] shadow-[0_-10px_30px_rgba(0,0,0,0.15)] pb-8 rounded-t-[2.5rem]">
         <button 
             onClick={() => { setActiveTab('agenda'); setSelectedDate(new Date()); }} 

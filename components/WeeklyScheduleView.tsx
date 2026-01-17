@@ -125,7 +125,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
 
                             return (
                                 <div key={dayId} 
-                                    className={`group/cell border-r border-slate-200 last:border-r-0 flex flex-col gap-1 relative overflow-hidden transition-all p-2 pb-16
+                                    className={`group/cell border-r border-slate-200 last:border-r-0 flex flex-col gap-1 relative overflow-hidden transition-all p-2 pb-20
                                     ${isWeekend(day) ? 'bg-slate-100/50' : (isOvernight ? 'bg-amber-50/40' : 'hover:bg-slate-50/80')} 
                                     ${isOver ? 'bg-red-50 ring-2 ring-inset ring-red-300' : ''}
                                     ${isSameDay(day, selectedDate) ? 'bg-red-50/20 shadow-inner' : ''}`} 
@@ -135,7 +135,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                     onClick={() => onSelectDate(day)}>
                                     
                                     {!isReadOnly && (
-                                        <div className="absolute top-1 right-1 flex gap-1 z-30 opacity-0 group-hover/cell:opacity-100 transition-all">
+                                        <div className="absolute top-1 right-1 flex gap-1 z-50 opacity-0 group-hover/cell:opacity-100 transition-all">
                                             <button onClick={(e) => { e.stopPropagation(); onToggleOvernight?.(day, tech.id); }} className={`p-1 rounded shadow-md border transition-all ${isOvernight ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-400 hover:text-amber-500 border-slate-200 hover:bg-amber-50'}`} title="Dormida">
                                                 <Moon size={12} fill={isOvernight ? "currentColor" : "none"} />
                                             </button>
@@ -145,7 +145,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                         </div>
                                     )}
 
-                                    <div className="flex-1 space-y-1.5 mt-1">
+                                    <div className="flex-1 space-y-1.5 mt-1 z-10 relative">
                                         {dayTechTickets.map(ticket => {
                                             const service = services.find(s => s.id === ticket.serviceId);
                                             const vehicle = vehicles.find(v => v.id === ticket.vehicleId);
@@ -176,26 +176,30 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                         })}
                                     </div>
 
-                                    {/* FOOTER DE SALDO - Melhoria de legibilidade */}
-                                    <div className={`absolute bottom-0 left-0 right-0 p-1.5 flex flex-col gap-0.5 text-[11px] font-black uppercase tracking-widest z-20 border-t border-slate-100 shadow-inner
-                                        ${balance < 0 ? 'bg-red-600 text-white' : 'bg-slate-900 text-white'}`}>
+                                    {/* FOOTER DE SALDO - LIGHT THEME */}
+                                    <div className={`absolute bottom-0 left-0 right-0 p-2 flex flex-col gap-1 text-[10px] font-bold uppercase tracking-wider z-40 border-t transition-colors
+                                        ${balance < 0 ? 'bg-red-50 border-red-100 text-red-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
                                         <div className="flex items-center justify-between">
-                                          <div className="flex items-center gap-1 font-black">
-                                              <Calculator size={11} className="text-white" />
-                                              <span>{totalDayHours.toFixed(1)}h</span>
+                                          <div className="flex items-center gap-1.5 font-black">
+                                              <Calculator size={12} className={balance < 0 ? "text-red-500" : "text-slate-400"} />
+                                              <span className="text-[11px]">{totalDayHours.toFixed(1)}h</span>
                                           </div>
-                                          <span className={`px-2 py-0.5 rounded-lg text-[10px] border border-black/10 shadow-sm ${balance < 0 ? 'bg-white text-red-700' : 'bg-emerald-500 text-white'}`}>
+                                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black border shadow-sm ${
+                                              balance < 0 ? 'bg-white text-red-600 border-red-100' : 'bg-white text-emerald-600 border-emerald-100'
+                                          }`}>
                                               {balance >= 0 ? `+${balance.toFixed(1)}h` : `${balance.toFixed(1)}h`}
                                           </span>
                                         </div>
-                                        <div className="flex items-center justify-between text-[9px] font-bold text-white/90">
+                                        <div className={`flex items-center justify-between text-[9px] font-semibold opacity-80`}>
                                            <span>TRAB: {totalWorkHours.toFixed(1)}h</span>
                                            <span>DESL: {totalTravelHours.toFixed(1)}h</span>
                                         </div>
                                     </div>
 
                                     {isOvernight && (
-                                        <div className="absolute bottom-11 left-0 right-0 bg-amber-500 text-white text-[8px] font-black py-0.5 flex items-center justify-center gap-1 uppercase tracking-widest shadow-lg z-10"><Moon size={8} fill="currentColor" /> DORMIDA</div>
+                                        <div className="absolute bottom-[58px] left-0 right-0 bg-amber-500 text-white text-[8px] font-black py-1 flex items-center justify-center gap-1 uppercase tracking-widest shadow-md z-30 border-t border-amber-600">
+                                            <Moon size={9} fill="currentColor" /> DORMIDA
+                                        </div>
                                     )}
                                 </div>
                             );

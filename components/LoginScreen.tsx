@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Technician } from '../types';
-import { Truck, ShieldCheck, User as UserIcon, Lock, ArrowRight, UserCheck, Cloud, Key, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
+import { Truck, ShieldCheck, User as UserIcon, Lock, ArrowRight, UserCheck, Cloud, Key, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
@@ -17,17 +18,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, syncKey, onSe
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [showCloudInput, setShowCloudInput] = useState(false);
   const [tempSyncKey, setTempSyncKey] = useState(syncKey || '');
+  const [isLoadingTechs, setIsLoadingTechs] = useState(false);
 
   useEffect(() => {
-    // Tenta carregar técnicos locais e atualizar se houver syncKey
-    const loadData = () => {
+    // Carrega técnicos diretamente do Supabase ao montar o componente
+    const loadTechs = async () => {
+      setIsLoadingTechs(true);
+      try {
+        const { data, error } = await supabase.from('technicians').select('*');
+        if (error) throw error;
+        if (data) {
+          setTechnicians(data as Technician[]);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar técnicos:", err);
+        // Fallback: Tenta carregar do localStorage se a API falhar (modo offline)
         const saved = localStorage.getItem('local_technicians');
         if (saved) setTechnicians(JSON.parse(saved));
+      } finally {
+        setIsLoadingTechs(false);
+      }
     };
-    loadData();
-    // Escuta mudanças no localStorage (útil após sync em background)
-    window.addEventListener('storage', loadData);
-    return () => window.removeEventListener('storage', loadData);
+    loadTechs();
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -66,11 +78,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, syncKey, onSe
   const handleApplyCloudKey = () => {
       onSetSyncKey(tempSyncKey);
       setShowCloudInput(false);
-      // Feedback visual e recarregamento forçado
-      setTimeout(() => {
-          const saved = localStorage.getItem('local_technicians');
-          if (saved) setTechnicians(JSON.parse(saved));
-      }, 800);
   };
 
   return (
@@ -148,9 +155,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, syncKey, onSe
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quem é você?</label>
                 <div className="relative">
                     <UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select required value={selectedTechId} onChange={(e) => setSelectedTechId(e.target.value)}
-                        className="w-full pl-12 pr-4 py-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 font-bold bg-slate-50 text-slate-900 text-sm appearance-none transition-all shadow-inner">
-                        <option value="">Selecione o seu nome...</option>
+                    <select required value={selectedTechId} onChange={(e) => setSelectedTechId(e.target.value)} disabled={isLoadingTechs}
+                        className="w-full pl-12 pr-4 py-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-red-600 font-bold bg-slate-50 text-slate-900 text-sm appearance-none transition-all shadow-inner disabled:opacity-50">
+                        <option value="">{isLoadingTechs ? 'A carregar equipa...' : 'Selecione o seu nome...'}</option>
                         {technicians.map(t => <option key={t.id} value={t.id}>{t.name.toUpperCase()}</option>)}
                     </select>
                 </div>

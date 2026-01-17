@@ -96,8 +96,11 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
     }
   };
 
+  // Melhoria na deteção de "Reconstrução" (remove acentos e case sensitivity)
   const selectedService = services.find(s => s.id === formData.serviceId);
-  const isReconstruction = selectedService?.name.toLowerCase().includes('reconstrução');
+  const isReconstruction = selectedService?.name
+    ? selectedService.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes('reconstrucao')
+    : false;
 
   const toggleTechnician = (techId: string) => {
     if (isReadOnly) return;
@@ -207,6 +210,19 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                             </div>
                         </div>
                     </div>
+                    
+                    {/* VISOR SELECTION - Conditional Render */}
+                    {isReconstruction && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                             <label className="block text-[10px] font-bold text-red-600 uppercase tracking-widest flex items-center gap-1">
+                                <Monitor size={12} /> Visor / Equipamento (Obrigatório)
+                             </label>
+                             <select required disabled={isReadOnly} value={formData.visorId} onChange={(e) => setFormData({...formData, visorId: e.target.value})} className="w-full px-4 py-3 border-2 border-red-100 rounded-xl font-bold bg-red-50 text-sm outline-none text-red-900 focus:border-red-500">
+                                <option value="">-- SELECIONE O VISOR --</option>
+                                {visores.map(v => <option key={v.id} value={v.id}>{v.name.toUpperCase()}</option>)}
+                             </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
