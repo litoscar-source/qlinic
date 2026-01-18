@@ -27,7 +27,6 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
     technicianIds: [] as string[],
     ticketNumber: '',
     customerName: '',
-    customerPhone: '',
     address: '',
     vehicleId: '',
     serviceId: '',
@@ -49,7 +48,6 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                 technicianIds: ticketToEdit.technicianIds,
                 ticketNumber: ticketToEdit.ticketNumber,
                 customerName: ticketToEdit.customerName,
-                customerPhone: ticketToEdit.customerPhone || '',
                 address: ticketToEdit.address,
                 vehicleId: ticketToEdit.vehicleId || (vehicles[0]?.id || ''),
                 serviceId: ticketToEdit.serviceId,
@@ -69,7 +67,6 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                 technicianIds: selectedTechId ? [selectedTechId] : (technicians[0] ? [technicians[0].id] : []),
                 ticketNumber: '',
                 customerName: '',
-                customerPhone: '',
                 address: '',
                 vehicleId: vehicles[0]?.id || '',
                 serviceId: defaultService ? defaultService.id : '',
@@ -235,7 +232,7 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nº Ticket ERP</label>
-                            <input type="text" required disabled={isReadOnly} value={formData.ticketNumber} onChange={(e) => setFormData({...formData, ticketNumber: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold text-sm uppercase bg-white text-slate-900" placeholder="TK-0000" />
+                            <input type="text" disabled={isReadOnly} value={formData.ticketNumber} onChange={(e) => setFormData({...formData, ticketNumber: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold text-sm uppercase bg-white text-slate-900" placeholder="TK-0000" />
                         </div>
                         <div className="space-y-2">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proc. Interno</label>
@@ -247,19 +244,10 @@ export const TicketFormModal: React.FC<TicketFormModalProps> = ({
                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-5">
                     <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2"><MapPin size={16} className="text-red-600" /> Localização do Cliente</h4>
                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
-                             <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Entidade</label>
-                                <input type="text" required disabled={isReadOnly} value={formData.customerName} onChange={(e) => setFormData({...formData, customerName: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold uppercase text-slate-900 text-sm bg-white" placeholder="NOME DO CLIENTE" />
-                             </div>
-                             <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                    <input type="tel" disabled={isReadOnly} value={formData.customerPhone} onChange={(e) => setFormData({...formData, customerPhone: e.target.value})} className="w-full pl-9 pr-4 py-3 border border-slate-300 rounded-xl font-bold text-slate-900 text-sm bg-white" placeholder="CONTACTO" />
-                                </div>
-                             </div>
-                        </div>
+                         <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Entidade</label>
+                            <input type="text" required disabled={isReadOnly} value={formData.customerName} onChange={(e) => setFormData({...formData, customerName: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold uppercase text-slate-900 text-sm bg-white" placeholder="NOME DO CLIENTE" />
+                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <input type="text" required disabled={isReadOnly} value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl font-medium text-slate-700 text-xs bg-white" placeholder="CP7 / Morada" />
                             <input type="text" disabled={isReadOnly} value={formData.locality} onChange={(e) => setFormData({...formData, locality: e.target.value})} className="w-full px-4 py-3 border border-slate-300 rounded-xl font-bold uppercase text-slate-900 text-xs bg-white" placeholder="CIDADE" />

@@ -320,9 +320,6 @@ export const MobileTechnicianView: React.FC<MobileTechnicianViewProps> = ({
                </div>
 
                <div className="flex gap-4">
-                  <a href={`tel:${activeTicketDetails.customerPhone || activeTicketDetails.notes?.match(/\d{9}/)?.[0] || ''}`} className="flex-1 bg-emerald-600 text-white p-5 rounded-[2rem] flex items-center justify-center gap-3 font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-100 active:scale-95 transition-all">
-                     <Phone size={24} /> Ligar
-                  </a>
                   <button onClick={() => { handleStatusChange(activeTicketDetails.id, TicketStatus.RESOLVIDO); setActiveTicketDetails(null); }} className="flex-1 bg-slate-900 text-white p-5 rounded-[2rem] flex items-center justify-center gap-3 font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-200 active:scale-95 transition-all">
                      <CheckCircle2 size={24} /> Finalizar
                   </button>

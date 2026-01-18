@@ -157,7 +157,7 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                                     draggable={!isReadOnly}
                                                     onDragStart={(e) => handleDragStart(e, ticket.id, tech.id)}
                                                     onClick={(e) => { e.stopPropagation(); onEditTicket(ticket); }} 
-                                                    className={`rounded-xl shadow-sm p-2 cursor-grab active:cursor-grabbing transition-transform hover:scale-[1.02] ${getCardStyle(ticket, service)}`}>
+                                                    className={`rounded-xl shadow-sm p-2 cursor-grab active:cursor-grabbing transition-transform hover:scale-[1.02] flex flex-col gap-0.5 ${getCardStyle(ticket, service)}`}>
                                                     
                                                     {ticket.travelTimeMinutes && (
                                                       <div className={`flex items-center gap-1 text-[9px] font-black uppercase mb-1 ${textCls}`}>
@@ -165,12 +165,26 @@ export const WeeklyScheduleView: React.FC<WeeklyScheduleViewProps> = ({
                                                       </div>
                                                     )}
 
-                                                    <div className="flex justify-between items-center mb-0.5">
+                                                    <div className="flex justify-between items-center">
                                                         <span className={`text-[10px] font-black uppercase ${textCls} opacity-90`}>{ticket.scheduledTime} ({ticket.duration}h)</span>
-                                                        {ticket.visorId && <PackageSearch size={10} className="text-red-600" />}
+                                                        <div className="flex items-center gap-1">
+                                                          {ticket.visorId && <PackageSearch size={10} className={textCls} />}
+                                                          <span className={`text-[9px] font-black uppercase ${textCls} opacity-60`}>#{ticket.ticketNumber}</span>
+                                                        </div>
                                                     </div>
-                                                    <p className={`uppercase truncate font-black tracking-tight text-[11px] leading-none ${textCls}`}>{ticket.customerName}</p>
-                                                    {visor && <p className={`text-[8px] font-bold mt-1 uppercase truncate ${textCls} opacity-80`}>Visor: {visor.name}</p>}
+
+                                                    <p className={`text-[8px] font-bold uppercase truncate opacity-70 ${textCls}`}>{service?.name || '---'}</p>
+
+                                                    <p className={`uppercase truncate font-black tracking-tight text-[10px] leading-tight ${textCls}`}>{ticket.customerName}</p>
+                                                    
+                                                    {ticket.locality && (
+                                                        <div className={`flex items-center gap-1 ${textCls} opacity-80`}>
+                                                            <MapPin size={8} />
+                                                            <span className="text-[8px] font-bold uppercase truncate">{ticket.locality}</span>
+                                                        </div>
+                                                    )}
+
+                                                    {visor && <p className={`text-[8px] font-bold mt-0.5 uppercase truncate ${textCls} opacity-80`}>Visor: {visor.name}</p>}
                                                 </div>
                                             );
                                         })}

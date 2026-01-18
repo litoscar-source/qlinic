@@ -38,7 +38,6 @@ export interface Ticket {
   technicianIds: string[];
   ticketNumber: string;
   customerName: string;
-  customerPhone?: string; // Novo campo de telefone
   address: string;
   vehicleId: string; // Referência ao ID do veículo
   serviceId: string;
