@@ -51,17 +51,22 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
   // Lógica específica para o Relatório de Visores (entre datas)
   const visorReportData = useMemo(() => {
       if (!isOpen) return [];
-      const start = startOfDay(new Date(startDate));
-      const end = endOfDay(new Date(endDate));
+      
+      // Garantir interpretação local das datas (inicio e fim do dia)
+      const start = new Date(`${startDate}T00:00:00`);
+      const end = new Date(`${endDate}T23:59:59`);
       
       return tickets.filter(t => {
-          const service = services.find(s => s.id === t.serviceId);
-          const isRecon = service?.name.toLowerCase().includes('reconstrução');
+          // Filtrar apenas se tiver visor associado (independente do nome do serviço)
+          const hasVisor = t.visorId && t.visorId !== '';
           const ticketDate = new Date(t.date);
-          const inDate = isWithinInterval(ticketDate, { start, end });
-          return isRecon && inDate && t.visorId;
+          
+          // Comparação de datas robusta
+          const inDate = ticketDate >= start && ticketDate <= end;
+          
+          return hasVisor && inDate;
       }).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [tickets, services, startDate, endDate, isOpen]);
+  }, [tickets, startDate, endDate, isOpen]);
 
   const kpis = useMemo(() => {
     if (!isOpen) return { totalServices: 0, totalDuration: 0, totalTravelTime: 0, overnights: 0, avgDuration: 0 };
@@ -126,7 +131,7 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
       printWindow.document.write(`
         <html>
             <head>
-                <title>Relatório de Picking - Visores</title>
+                <title>Relatório de Logística - Visores</title>
                 <style>
                     body { font-family: sans-serif; padding: 40px; }
                     h1 { color: #d32f2f; margin-bottom: 5px; }
@@ -137,7 +142,7 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
             </head>
             <body>
                 <div class="header">
-                    <h1>REQUISIÇÃO DE VISORES</h1>
+                    <h1>LOGÍSTICA DE VISORES</h1>
                     <p style="margin: 0; color: #666;">Período: ${format(new Date(startDate), 'dd/MM/yyyy')} a ${format(new Date(endDate), 'dd/MM/yyyy')}</p>
                 </div>
                 <table>
@@ -151,7 +156,7 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        ${visorHtmlRows || '<tr><td colspan="5" style="text-align:center; padding: 40px;">Sem reconstruções agendadas para este período.</td></tr>'}
+                        ${visorHtmlRows || '<tr><td colspan="5" style="text-align:center; padding: 40px;">Sem alocação de visores para este período.</td></tr>'}
                     </tbody>
                 </table>
                 <p style="margin-top: 40px; font-size: 10px; color: #999; text-align: center;">Gerado por Qlinic Dispatch Pro em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
@@ -301,7 +306,7 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
              <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                 <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                     <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                        <Monitor size={14} className="text-red-600" /> Visores para Reconstruções ({visorReportData.length})
+                        <Monitor size={14} className="text-red-600" /> Logística de Visores ({visorReportData.length})
                     </h4>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -332,7 +337,7 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
                          })}
                          {visorReportData.length === 0 && (
                             <tr>
-                               <td colSpan={4} className="px-6 py-20 text-center text-slate-400 italic font-bold uppercase tracking-widest text-[10px]">Sem dados para o intervalo selecionado.</td>
+                               <td colSpan={4} className="px-6 py-20 text-center text-slate-400 italic font-bold uppercase tracking-widest text-[10px]">Sem alocação de visores para este período.</td>
                             </tr>
                          )}
                       </tbody>
